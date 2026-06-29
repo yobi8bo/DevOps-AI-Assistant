@@ -16,7 +16,7 @@ SELECT
     'OpenAI',
     'RESPONSES',
     'gpt-5.5',
-    'https://api.nexustokenai.com',
+    'https://api.xxxx.com',
     NULL,
     4096,
     0.30,
