@@ -16,11 +16,7 @@
 .
 ├── backend                 Spring Boot 后端
 ├── frontend                Vue3 前端
-├── docker-compose.yml      本地依赖服务
-├── ARCHITECTURE.md         架构设计
-├── DATABASE_DESIGN.md      数据库设计
-├── API_DESIGN.md           接口契约
-└── DevOps-AI-Assistant.md  原始需求说明书
+└── docker-compose.yml      本地依赖服务
 ```
 
 ## 本地启动
