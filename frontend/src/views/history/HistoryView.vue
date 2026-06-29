@@ -114,6 +114,19 @@
             <p>{{ detail.latestResult?.summary || '-' }}</p>
           </a-card>
 
+          <a-card title="继续分析" :bordered="false">
+            <a-space direction="vertical" class="follow-up-box">
+              <a-textarea
+                v-model:value="followUpContent"
+                :rows="4"
+                placeholder="补充新的日志、命令输出或排查结果"
+              />
+              <a-button type="primary" :loading="followUpLoading" @click="submitFollowUp">
+                发送追问
+              </a-button>
+            </a-space>
+          </a-card>
+
           <a-card title="会话消息" :bordered="false">
             <a-timeline>
               <a-timeline-item v-for="item in detail.messages" :key="item.id">
@@ -136,6 +149,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { message, type TablePaginationConfig } from 'ant-design-vue';
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue';
 import {
+  continueDiagnosisSession,
   deleteDiagnosisSession,
   fetchDiagnosisSession,
   fetchDiagnosisSessions,
@@ -146,11 +160,13 @@ import {
 
 const loading = ref(false);
 const detailLoading = ref(false);
+const followUpLoading = ref(false);
 const detailOpen = ref(false);
 const detail = ref<SessionDetail | null>(null);
 const sessions = ref<SessionSummary[]>([]);
 const total = ref(0);
 const productionFilter = ref<string | undefined>();
+const followUpContent = ref('');
 
 const query = reactive({
   keyword: '',
@@ -246,12 +262,39 @@ async function openDetail(id: number) {
   detailOpen.value = true;
   detailLoading.value = true;
   detail.value = null;
+  followUpContent.value = '';
   try {
     detail.value = await fetchDiagnosisSession(id);
   } catch (error) {
     message.error(error instanceof Error ? error.message : '加载详情失败');
   } finally {
     detailLoading.value = false;
+  }
+}
+
+async function submitFollowUp() {
+  if (!detail.value?.id) {
+    message.warning('请先打开排障详情');
+    return;
+  }
+  if (!followUpContent.value.trim()) {
+    message.warning('请输入追问内容');
+    return;
+  }
+  const sessionId = detail.value.id;
+  followUpLoading.value = true;
+  try {
+    await continueDiagnosisSession(sessionId, {
+      content: followUpContent.value.trim(),
+    });
+    followUpContent.value = '';
+    detail.value = await fetchDiagnosisSession(sessionId);
+    await loadSessions();
+    message.success('分析已更新');
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '继续分析失败');
+  } finally {
+    followUpLoading.value = false;
   }
 }
 

@@ -77,37 +77,6 @@
         </a-col>
       </a-row>
 
-      <a-row :gutter="[16, 16]" class="section">
-        <a-col :xs="24" :lg="12">
-          <a-card title="故障类型分布" :bordered="false" class="dashboard-panel">
-            <div v-if="categoryStats.length" class="category-list">
-              <div v-for="item in categoryStats" :key="item.name" class="category-item">
-                <div>
-                  <strong>{{ item.name }}</strong>
-                  <span>{{ item.count }} 次</span>
-                </div>
-                <a-progress :percent="item.percent" :show-info="false" size="small" />
-              </div>
-            </div>
-            <a-empty v-else description="暂无分类数据" />
-          </a-card>
-        </a-col>
-
-        <a-col :xs="24" :lg="12">
-          <a-card title="最近 AI 调用" :bordered="false" class="dashboard-panel">
-            <a-timeline v-if="recentLogs.length">
-              <a-timeline-item v-for="item in recentLogs" :key="item.id" :color="item.success ? 'green' : 'red'">
-                <div class="log-line">
-                  <strong>{{ item.modelName || '-' }}</strong>
-                  <a-tag :color="item.success ? 'green' : 'red'">{{ item.success ? '成功' : '失败' }}</a-tag>
-                </div>
-                <div class="muted-line">{{ item.createdAt }} · {{ item.latencyMs || 0 }} ms · {{ item.totalTokens || 0 }} tokens</div>
-              </a-timeline-item>
-            </a-timeline>
-            <a-empty v-else description="暂无调用日志" />
-          </a-card>
-        </a-col>
-      </a-row>
     </a-spin>
   </div>
 </template>
@@ -199,26 +168,13 @@ const stats = computed(() => [
   },
 ]);
 
-const categoryStats = computed(() => {
-  const counts = new Map<string, number>();
-  for (const item of recentSessions.value) {
-    const name = item.category || '未分类';
-    counts.set(name, (counts.get(name) || 0) + 1);
-  }
-  const max = Math.max(...counts.values(), 1);
-  return [...counts.entries()]
-    .map(([name, count]) => ({ name, count, percent: Math.round((count / max) * 100) }))
-    .sort((left, right) => right.count - left.count)
-    .slice(0, 6);
-});
-
 onMounted(loadDashboard);
 
 async function loadDashboard() {
   loading.value = true;
   try {
     const [sessionPage, logPage, modelPage, promptPage] = await Promise.all([
-      fetchDiagnosisSessions({ pageNum: 1, pageSize: 8 }),
+      fetchDiagnosisSessions({ pageNum: 1, pageSize: 3 }),
       fetchAiCallLogs({ pageNum: 1, pageSize: 8 }),
       fetchModelConfigs({ pageNum: 1, pageSize: 1 }),
       fetchPromptTemplates({ pageNum: 1, pageSize: 1 }),

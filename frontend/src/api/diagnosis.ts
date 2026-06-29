@@ -20,6 +20,11 @@ export interface AnalyzeRequest {
   modelConfigId?: number;
 }
 
+export interface FollowUpRequest {
+  content: string;
+  modelConfigId?: number;
+}
+
 export interface CommandSuggestion {
   command: string;
   description: string;
@@ -113,6 +118,11 @@ export async function fetchDiagnosisSessions(query: SessionQuery): Promise<PageR
 
 export async function fetchDiagnosisSession(id: number): Promise<SessionDetail> {
   const response = await http.get<ApiResponse<SessionDetail>>(`/diagnosis/sessions/${id}`);
+  return response.data.data;
+}
+
+export async function continueDiagnosisSession(id: number, payload: FollowUpRequest): Promise<AnalyzeResponse> {
+  const response = await http.post<ApiResponse<AnalyzeResponse>>(`/diagnosis/sessions/${id}/messages`, payload);
   return response.data.data;
 }
 

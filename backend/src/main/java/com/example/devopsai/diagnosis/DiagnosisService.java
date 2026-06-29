@@ -1,6 +1,7 @@
 package com.example.devopsai.diagnosis;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.devopsai.ai.AiDiagnosisService;
@@ -9,6 +10,7 @@ import com.example.devopsai.common.PageResponse;
 import com.example.devopsai.diagnosis.DiagnosisController.AnalyzeRequest;
 import com.example.devopsai.diagnosis.DiagnosisController.AnalyzeResponse;
 import com.example.devopsai.diagnosis.DiagnosisController.CommandSuggestion;
+import com.example.devopsai.diagnosis.DiagnosisController.FollowUpRequest;
 import com.example.devopsai.diagnosis.DiagnosisController.MessageItem;
 import com.example.devopsai.diagnosis.DiagnosisController.ResultItem;
 import com.example.devopsai.diagnosis.DiagnosisController.SessionDetail;
@@ -137,6 +139,65 @@ public class DiagnosisService {
         userMessage.setCreatedBy(userId);
         messageMapper.insert(userMessage);
 
+        return saveAiAnalysis(session, request, userId);
+    }
+
+    /**
+     * 在已有会话中追加追问并重新生成诊断结果。
+     * @param id 会话ID。
+     * @param request 追问请求。
+     * @param userId 用户ID。
+     * @return 最新分析结果。
+     */
+    @Transactional
+    public AnalyzeResponse continueAnalyze(Long id, FollowUpRequest request, Long userId) {
+        var session = selectOwnedSession(id, userId);
+        var context = buildConversationContext(id);
+
+        var userMessage = new DiagnosisMessage();
+        userMessage.setSessionId(session.getId());
+        userMessage.setRole("user");
+        userMessage.setContent(request.content());
+        userMessage.setContentSanitized(request.content());
+        userMessage.setCreatedBy(userId);
+        messageMapper.insert(userMessage);
+
+        var followUpAnalyzeRequest = new AnalyzeRequest(
+                session.getTitle(),
+                session.getCategory(),
+                session.getEnvironment(),
+                session.getOsInfo(),
+                session.getMiddleware(),
+                session.getServiceType(),
+                Integer.valueOf(1).equals(session.getIsProduction()),
+                session.getUrgencyLevel(),
+                buildFollowUpDescription(context, request.content()),
+                null,
+                request.content(),
+                request.modelConfigId()
+        );
+        session.setStatus(DEFAULT_STATUS);
+        session.setLastMessageAt(LocalDateTime.now());
+        session.setUpdatedBy(userId);
+        sessionMapper.updateById(session);
+
+        log.info("diagnosis_follow_up_created sessionId={} userId={} messageId={}",
+                session.getId(), userId, userMessage.getId());
+        return saveAiAnalysis(session, followUpAnalyzeRequest, userId);
+    }
+
+    /**
+     * 调用AI并保存助手消息和结构化结果。
+     * @param session 诊断会话。
+     * @param request 分析请求。
+     * @param userId 用户ID。
+     * @return 最新分析结果。
+     */
+    private AnalyzeResponse saveAiAnalysis(
+            DiagnosisSession session,
+            AnalyzeRequest request,
+            Long userId
+    ) {
         var aiResult = aiDiagnosisService.analyze(request, session.getId(), userId);
         var response = applyRiskDetection(aiResult.response(), request);
 
@@ -310,10 +371,15 @@ public class DiagnosisService {
 
     @Transactional
     public void deleteSession(Long id, Long userId) {
-        var session = selectOwnedSession(id, userId);
-        session.setDeleted(1);
-        session.setUpdatedBy(userId);
-        sessionMapper.updateById(session);
+        int updated = sessionMapper.update(null, new LambdaUpdateWrapper<DiagnosisSession>()
+                .set(DiagnosisSession::getDeleted, 1)
+                .set(DiagnosisSession::getUpdatedBy, userId)
+                .eq(DiagnosisSession::getId, id)
+                .eq(DiagnosisSession::getUserId, userId)
+                .eq(DiagnosisSession::getDeleted, 0));
+        if (updated == 0) {
+            throw new BusinessException(404, "排障会话不存在");
+        }
         log.info("diagnosis_session_deleted sessionId={} userId={}", id, userId);
     }
     /**
@@ -345,6 +411,50 @@ public class DiagnosisService {
                 .eq(DiagnosisResult::getSessionId, sessionId)
                 .orderByDesc(DiagnosisResult::getCreatedAt)
                 .last("LIMIT 1"));
+    }
+
+    /**
+     * 构建用于多轮追问的会话上下文。
+     * @param sessionId 会话ID。
+     * @return 会话上下文。
+     */
+    private String buildConversationContext(Long sessionId) {
+        var messages = messageMapper.selectList(new LambdaQueryWrapper<DiagnosisMessage>()
+                .eq(DiagnosisMessage::getSessionId, sessionId)
+                .orderByAsc(DiagnosisMessage::getCreatedAt));
+        if (messages.isEmpty()) {
+            return "";
+        }
+        var builder = new StringBuilder();
+        for (var message : messages) {
+            builder.append(message.getRole()).append("：\n")
+                    .append(message.getContent()).append("\n\n");
+        }
+        var latest = selectLatestResult(sessionId);
+        if (latest != null) {
+            builder.append("latest_result：\n")
+                    .append(blankToDash(latest.getResultJson()))
+                    .append("\n\n");
+        }
+        return builder.toString().trim();
+    }
+
+    /**
+     * 构建继续追问的完整诊断描述。
+     * @param context 历史会话上下文。
+     * @param content 本次追问内容。
+     * @return 完整诊断描述。
+     */
+    private String buildFollowUpDescription(String context, String content) {
+        return """
+                以下是同一次故障排查会话的历史上下文，请基于上下文和本次补充继续分析，必要时修正之前的判断。
+
+                历史上下文：
+                %s
+
+                本次补充：
+                %s
+                """.formatted(blankToDash(context), content);
     }
     /**
      * 构建兜底诊断结果。

@@ -125,6 +125,22 @@ public class DiagnosisController {
         diagnosisService.deleteSession(id, principal.getId());
         return ApiResponse.success("删除成功", true);
     }
+
+    /**
+     * 在已有排障会话中继续追问。
+     * @param id 会话ID。
+     * @param request 追问内容。
+     * @param principal 当前登录用户。
+     * @return 分析结果。
+     */
+    @PostMapping("/sessions/{id}/messages")
+    public ApiResponse<AnalyzeResponse> continueAnalyze(
+            @PathVariable Long id,
+            @Valid @RequestBody FollowUpRequest request,
+            @AuthenticationPrincipal AppUserPrincipal principal
+    ) {
+        return ApiResponse.success("分析成功", diagnosisService.continueAnalyze(id, request, principal.getId()));
+    }
     /**
      * AnalyzeRequest请求对象，负责承载接口入参。
      * 
@@ -144,6 +160,18 @@ public class DiagnosisController {
             String description,
             String logContent,
             String commandOutput,
+            Long modelConfigId
+    ) {
+    }
+
+    /**
+     * FollowUpRequest请求对象，负责承载继续追问入参。
+     *
+     * @author zhang
+     * @date 2026-06-29
+     */
+    public record FollowUpRequest(
+            @NotBlank String content,
             Long modelConfigId
     ) {
     }

@@ -11,9 +11,9 @@
       </a-button>
     </div>
 
-    <a-row :gutter="[16, 16]">
+    <a-row :gutter="[16, 16]" class="diagnosis-workbench">
       <a-col :xs="24" :xl="11">
-        <a-card title="故障输入" :bordered="false">
+        <a-card title="故障输入" :bordered="false" class="diagnosis-input-card">
           <a-form layout="vertical">
             <a-form-item label="故障标题">
               <a-input v-model:value="form.title" placeholder="例如：Docker 执行 docker ps 权限不足" />
@@ -47,35 +47,61 @@
       </a-col>
 
       <a-col :xs="24" :xl="13">
-        <a-card title="AI 分析结果" :bordered="false">
-          <a-empty v-if="!result" description="提交后将在这里显示结构化排障建议" />
-          <div v-else class="result">
-            <a-alert v-if="result.riskLevel !== 'LOW'" type="warning" show-icon :message="riskText" />
-            <section>
-              <h2>问题摘要</h2>
-              <p>{{ result.summary }}</p>
-            </section>
-            <section>
-              <h2>可能原因</h2>
-              <a-list size="small" :data-source="result.possibleCauses">
-                <template #renderItem="{ item }">
-                  <a-list-item>{{ item }}</a-list-item>
-                </template>
-              </a-list>
-            </section>
-            <section>
-              <h2>建议命令</h2>
-              <a-table size="small" :pagination="false" :columns="commandColumns" :data-source="result.commands" row-key="command" />
-            </section>
-            <section>
-              <h2>修复步骤</h2>
-              <a-list size="small" :data-source="result.fixSteps">
-                <template #renderItem="{ item }">
-                  <a-list-item>{{ item }}</a-list-item>
-                </template>
-              </a-list>
-            </section>
+        <a-card title="AI 分析结果" :bordered="false" class="diagnosis-result-card">
+          <div v-if="!result" class="result-empty">
+            <a-empty description="提交后将在这里显示结构化排障建议" />
           </div>
+          <template v-else>
+            <div class="result-scroll">
+              <div class="result">
+                <a-alert v-if="result.riskLevel !== 'LOW'" type="warning" show-icon :message="riskText" />
+                <section>
+                  <h2>问题摘要</h2>
+                  <p>{{ result.summary }}</p>
+                </section>
+                <section>
+                  <h2>可能原因</h2>
+                  <a-list size="small" :data-source="result.possibleCauses">
+                    <template #renderItem="{ item }">
+                      <a-list-item>{{ item }}</a-list-item>
+                    </template>
+                  </a-list>
+                </section>
+                <section>
+                  <h2>建议命令</h2>
+                  <a-table
+                    size="small"
+                    :pagination="false"
+                    :columns="commandColumns"
+                    :data-source="result.commands"
+                    row-key="command"
+                  />
+                </section>
+                <section>
+                  <h2>修复步骤</h2>
+                  <a-list size="small" :data-source="result.fixSteps">
+                    <template #renderItem="{ item }">
+                      <a-list-item>{{ item }}</a-list-item>
+                    </template>
+                  </a-list>
+                </section>
+              </div>
+            </div>
+
+            <div class="follow-up-panel">
+              <div class="follow-up-title">继续追问</div>
+              <div class="follow-up-controls">
+                <a-textarea
+                  v-model:value="followUpContent"
+                  :rows="2"
+                  placeholder="补充新的日志、命令输出或排查结果"
+                />
+                <a-button type="primary" :loading="followUpLoading" @click="submitFollowUp">
+                  发送
+                </a-button>
+              </div>
+            </div>
+          </template>
         </a-card>
       </a-col>
     </a-row>
@@ -86,9 +112,11 @@
 import { computed, reactive, ref } from 'vue';
 import { message } from 'ant-design-vue';
 import { ThunderboltOutlined } from '@ant-design/icons-vue';
-import { analyzeDiagnosis, type AnalyzeResponse } from '@/api/diagnosis';
+import { analyzeDiagnosis, continueDiagnosisSession, type AnalyzeResponse } from '@/api/diagnosis';
 
 const loading = ref(false);
+const followUpLoading = ref(false);
+const followUpContent = ref('');
 const result = ref<AnalyzeResponse | null>(null);
 
 const form = reactive({
@@ -139,5 +167,28 @@ async function submitAnalyze() {
     loading.value = false;
   }
 }
-</script>
 
+async function submitFollowUp() {
+  if (!result.value?.sessionId) {
+    message.warning('请先完成一次分析');
+    return;
+  }
+  if (!followUpContent.value.trim()) {
+    message.warning('请输入追问内容');
+    return;
+  }
+  const sessionId = result.value.sessionId;
+  followUpLoading.value = true;
+  try {
+    result.value = await continueDiagnosisSession(sessionId, {
+      content: followUpContent.value.trim(),
+    });
+    followUpContent.value = '';
+    message.success('分析已更新');
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '继续分析失败');
+  } finally {
+    followUpLoading.value = false;
+  }
+}
+</script>
