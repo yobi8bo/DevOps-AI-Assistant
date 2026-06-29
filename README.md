@@ -45,7 +45,7 @@ cp .env.example .env
 AI 中转站默认配置：
 
 ```text
-APP_AI_BASE_URL=https://api.nexustokenai.com
+APP_AI_BASE_URL=https://api.xxxxx.com
 APP_AI_MODEL=gpt-5.5
 APP_AI_API_STYLE=RESPONSES
 ```
