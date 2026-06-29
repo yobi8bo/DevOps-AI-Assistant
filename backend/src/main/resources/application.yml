@@ -1,51 +1,93 @@
+# Web 服务配置。
 server:
+  # 后端 HTTP 服务监听端口。
   port: 8080
 
+# Spring Boot 基础配置。
 spring:
+  # 外部配置导入，按当前目录、上级目录和 backend 目录依次尝试加载 .env。
   config:
     import:
       - optional:file:.env[.properties]
       - optional:file:../.env[.properties]
       - optional:file:backend/.env[.properties]
+  # 应用名称，用于日志、监控和服务标识。
   application:
     name: devops-ai-assistant
+  # MySQL 数据源配置，优先读取环境变量，未配置时使用本地默认值。
   datasource:
+    # 数据库连接地址。
     url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3309}/${MYSQL_DATABASE:devops_ai}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    # 数据库用户名。
     username: ${MYSQL_USERNAME:root}
+    # 数据库密码。
     password: ${MYSQL_PASSWORD:1122334}
+    # MySQL JDBC 驱动类。
     driver-class-name: com.mysql.cj.jdbc.Driver
+  # Spring Data 相关配置。
   data:
+    # Redis 连接配置，供缓存、会话或异步能力使用。
     redis:
+      # Redis 主机地址。
       host: ${REDIS_HOST:localhost}
+      # Redis 端口。
       port: ${REDIS_PORT:7379}
+  # Flyway 数据库迁移配置。
   flyway:
+    # 是否启用数据库迁移。
     enabled: ${FLYWAY_ENABLED:true}
+    # 迁移脚本所在 classpath 路径。
     locations: classpath:db/migration
 
+# MyBatis Plus 配置。
 mybatis-plus:
+  # MyBatis 运行时配置。
   configuration:
+    # 开启下划线字段到驼峰属性的自动映射。
     map-underscore-to-camel-case: true
+  # MyBatis Plus 全局配置。
   global-config:
+    # 数据库通用字段策略。
     db-config:
+      # 主键使用数据库自增策略。
       id-type: auto
+      # 逻辑删除字段名。
       logic-delete-field: deleted
+      # 逻辑删除值。
       logic-delete-value: 1
+      # 逻辑未删除值。
       logic-not-delete-value: 0
 
+# OpenAPI/Swagger 文档配置。
 springdoc:
+  # Swagger UI 访问路径配置。
   swagger-ui:
+    # Swagger UI 页面路径。
     path: /swagger-ui.html
 
+# 应用自定义配置。
 app:
+  # JWT 认证配置。
   jwt:
+    # JWT 签名密钥，生产环境必须通过环境变量覆盖默认值。
     secret: ${JWT_SECRET:change-me-change-me-change-me-change-me}
+    # JWT 有效期，单位为秒。
     expires-seconds: ${JWT_EXPIRES_SECONDS:7200}
+  # AI 服务默认配置。
   ai:
+    # AI 服务提供商名称。
     provider: ${APP_AI_PROVIDER:OpenAI}
+    # AI 接口调用风格。
     api-style: ${APP_AI_API_STYLE:RESPONSES}
+    # AI 服务基础地址。
     base-url: ${APP_AI_BASE_URL:https://api.nexustokenai.com}
+    # 默认使用的 AI 模型。
     model: ${APP_AI_MODEL:gpt-5.5}
+    # AI 服务访问密钥，默认留空并由环境变量提供。
     api-key: ${APP_AI_API_KEY:}
+    # AI 单次响应最大 Token 数。
     max-tokens: ${APP_AI_MAX_TOKENS:4096}
+    # AI 采样温度，数值越高输出越发散。
     temperature: ${APP_AI_TEMPERATURE:0.3}
+    # AI 请求超时时间，单位为秒。
     timeout-seconds: ${APP_AI_TIMEOUT_SECONDS:60}
