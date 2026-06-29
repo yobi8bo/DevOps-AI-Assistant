@@ -1,0 +1,367 @@
+package com.example.devopsai.diagnosis;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.devopsai.ai.AiDiagnosisService;
+import com.example.devopsai.common.BusinessException;
+import com.example.devopsai.common.PageResponse;
+import com.example.devopsai.diagnosis.DiagnosisController.AnalyzeRequest;
+import com.example.devopsai.diagnosis.DiagnosisController.AnalyzeResponse;
+import com.example.devopsai.diagnosis.DiagnosisController.CommandSuggestion;
+import com.example.devopsai.diagnosis.DiagnosisController.MessageItem;
+import com.example.devopsai.diagnosis.DiagnosisController.ResultItem;
+import com.example.devopsai.diagnosis.DiagnosisController.SessionDetail;
+import com.example.devopsai.diagnosis.DiagnosisController.SessionQuery;
+import com.example.devopsai.diagnosis.DiagnosisController.SessionSummary;
+import com.example.devopsai.diagnosis.entity.DiagnosisMessage;
+import com.example.devopsai.diagnosis.entity.DiagnosisResult;
+import com.example.devopsai.diagnosis.entity.DiagnosisSession;
+import com.example.devopsai.diagnosis.mapper.DiagnosisMessageMapper;
+import com.example.devopsai.diagnosis.mapper.DiagnosisResultMapper;
+import com.example.devopsai.diagnosis.mapper.DiagnosisSessionMapper;
+import com.example.devopsai.risk.RiskDetectionService;
+import com.example.devopsai.risk.RiskLevel;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
+import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+@Service
+public class DiagnosisService {
+
+    private static final Logger log = LoggerFactory.getLogger(DiagnosisService.class);
+
+    private static final String DEFAULT_STATUS = "WAITING_CONFIRM";
+
+    private final DiagnosisSessionMapper sessionMapper;
+    private final DiagnosisMessageMapper messageMapper;
+    private final DiagnosisResultMapper resultMapper;
+    private final AiDiagnosisService aiDiagnosisService;
+    private final RiskDetectionService riskDetectionService;
+    private final ObjectMapper objectMapper;
+
+    public DiagnosisService(
+            DiagnosisSessionMapper sessionMapper,
+            DiagnosisMessageMapper messageMapper,
+            DiagnosisResultMapper resultMapper,
+            AiDiagnosisService aiDiagnosisService,
+            RiskDetectionService riskDetectionService,
+            ObjectMapper objectMapper
+    ) {
+        this.sessionMapper = sessionMapper;
+        this.messageMapper = messageMapper;
+        this.resultMapper = resultMapper;
+        this.aiDiagnosisService = aiDiagnosisService;
+        this.riskDetectionService = riskDetectionService;
+        this.objectMapper = objectMapper;
+    }
+
+    @Transactional
+    public AnalyzeResponse analyze(AnalyzeRequest request, Long userId) {
+        var now = LocalDateTime.now();
+        var session = new DiagnosisSession();
+        session.setTitle(request.title());
+        session.setCategory(request.category());
+        session.setEnvironment(request.environment());
+        session.setOsInfo(request.osInfo());
+        session.setMiddleware(request.middleware());
+        session.setServiceType(request.serviceType());
+        session.setIsProduction(Boolean.TRUE.equals(request.isProduction()) ? 1 : 0);
+        session.setUrgencyLevel(request.urgencyLevel());
+        session.setStatus(DEFAULT_STATUS);
+        session.setUserId(userId);
+        session.setLastMessageAt(now);
+        session.setCreatedBy(userId);
+        session.setUpdatedBy(userId);
+        sessionMapper.insert(session);
+        log.info("diagnosis_session_created sessionId={} userId={} category={} production={}",
+                session.getId(), userId, request.category(), Boolean.TRUE.equals(request.isProduction()));
+
+        var userMessage = new DiagnosisMessage();
+        userMessage.setSessionId(session.getId());
+        userMessage.setRole("user");
+        userMessage.setContent(buildUserContent(request));
+        userMessage.setContentSanitized(userMessage.getContent());
+        userMessage.setCreatedBy(userId);
+        messageMapper.insert(userMessage);
+
+        var aiResult = aiDiagnosisService.analyze(request, session.getId(), userId);
+        var response = applyRiskDetection(aiResult.response(), request);
+
+        var assistantMessage = new DiagnosisMessage();
+        assistantMessage.setSessionId(session.getId());
+        assistantMessage.setRole("assistant");
+        assistantMessage.setContent(response.summary());
+        assistantMessage.setContentSanitized(response.summary());
+        assistantMessage.setCreatedBy(userId);
+        messageMapper.insert(assistantMessage);
+
+        response = new AnalyzeResponse(
+                response.sessionId(),
+                assistantMessage.getId(),
+                null,
+                response.summary(),
+                response.possibleCauses(),
+                response.checkSteps(),
+                response.fixSteps(),
+                response.commands(),
+                response.riskLevel(),
+                response.riskWarnings(),
+                response.needRestart(),
+                response.dataRisk(),
+                response.prevention(),
+                response.needMoreInfo()
+        );
+
+        var result = new DiagnosisResult();
+        result.setSessionId(session.getId());
+        result.setMessageId(assistantMessage.getId());
+        result.setSummary(response.summary());
+        result.setResultJson(toJson(response));
+        result.setRawResponse(aiResult.rawResponse());
+        result.setRiskLevel(response.riskLevel());
+        result.setNeedRestart(response.needRestart() ? 1 : 0);
+        result.setDataRisk(response.dataRisk() ? 1 : 0);
+        result.setModelConfigId(aiResult.modelConfigId());
+        result.setPromptTemplateId(aiResult.promptTemplateId());
+        result.setPromptVersion(aiResult.promptVersion());
+        result.setCreatedBy(userId);
+        resultMapper.insert(result);
+        log.info("diagnosis_analysis_saved sessionId={} resultId={} userId={} riskLevel={} modelConfigId={} promptTemplateId={} promptVersion={}",
+                session.getId(), result.getId(), userId, response.riskLevel(),
+                aiResult.modelConfigId(), aiResult.promptTemplateId(), aiResult.promptVersion());
+
+        return new AnalyzeResponse(
+                response.sessionId(),
+                response.messageId(),
+                result.getId(),
+                response.summary(),
+                response.possibleCauses(),
+                response.checkSteps(),
+                response.fixSteps(),
+                response.commands(),
+                response.riskLevel(),
+                response.riskWarnings(),
+                response.needRestart(),
+                response.dataRisk(),
+                response.prevention(),
+                response.needMoreInfo()
+        );
+    }
+
+    public PageResponse<SessionSummary> listSessions(SessionQuery query, Long userId) {
+        var wrapper = new LambdaQueryWrapper<DiagnosisSession>()
+                .eq(DiagnosisSession::getUserId, userId)
+                .eq(DiagnosisSession::getDeleted, 0)
+                .orderByDesc(DiagnosisSession::getUpdatedAt);
+
+        if (StringUtils.hasText(query.keyword())) {
+            wrapper.like(DiagnosisSession::getTitle, query.keyword());
+        }
+        if (StringUtils.hasText(query.category())) {
+            wrapper.eq(DiagnosisSession::getCategory, query.category());
+        }
+        if (StringUtils.hasText(query.status())) {
+            wrapper.eq(DiagnosisSession::getStatus, query.status());
+        }
+        if (query.isProduction() != null) {
+            wrapper.eq(DiagnosisSession::getIsProduction, query.isProduction() ? 1 : 0);
+        }
+
+        IPage<DiagnosisSession> page = sessionMapper.selectPage(new Page<>(query.pageNum(), query.pageSize()), wrapper);
+        var records = page.getRecords().stream()
+                .map(session -> {
+                    var latest = selectLatestResult(session.getId());
+                    return new SessionSummary(
+                            session.getId(),
+                            session.getTitle(),
+                            session.getCategory(),
+                            session.getEnvironment(),
+                            Integer.valueOf(1).equals(session.getIsProduction()),
+                            session.getUrgencyLevel(),
+                            session.getStatus(),
+                            latest == null ? "LOW" : latest.getRiskLevel(),
+                            latest == null ? "" : latest.getSummary(),
+                            session.getCreatedAt(),
+                            session.getUpdatedAt()
+                    );
+                })
+                .toList();
+        return new PageResponse<>(records, page.getCurrent(), page.getSize(), page.getTotal(), page.getPages());
+    }
+
+    public SessionDetail getSession(Long id, Long userId) {
+        var session = selectOwnedSession(id, userId);
+        var messages = messageMapper.selectList(new LambdaQueryWrapper<DiagnosisMessage>()
+                        .eq(DiagnosisMessage::getSessionId, id)
+                        .orderByAsc(DiagnosisMessage::getCreatedAt))
+                .stream()
+                .map(message -> new MessageItem(message.getId(), message.getRole(), message.getContent(), message.getCreatedAt()))
+                .toList();
+        var latest = selectLatestResult(id);
+        var result = latest == null ? null : new ResultItem(
+                latest.getId(),
+                latest.getSummary(),
+                latest.getRiskLevel(),
+                latest.getResultJson(),
+                latest.getModelConfigId(),
+                latest.getPromptTemplateId(),
+                latest.getPromptVersion(),
+                latest.getCreatedAt()
+        );
+        return new SessionDetail(
+                session.getId(),
+                session.getTitle(),
+                session.getCategory(),
+                session.getEnvironment(),
+                Integer.valueOf(1).equals(session.getIsProduction()),
+                session.getUrgencyLevel(),
+                session.getStatus(),
+                messages,
+                result,
+                session.getCreatedAt(),
+                session.getUpdatedAt()
+        );
+    }
+
+    @Transactional
+    public void updateStatus(Long id, String status, Long userId) {
+        var session = selectOwnedSession(id, userId);
+        session.setStatus(status);
+        session.setUpdatedBy(userId);
+        sessionMapper.updateById(session);
+        log.info("diagnosis_status_updated sessionId={} userId={} status={}", id, userId, status);
+    }
+
+    @Transactional
+    public void deleteSession(Long id, Long userId) {
+        var session = selectOwnedSession(id, userId);
+        session.setDeleted(1);
+        session.setUpdatedBy(userId);
+        sessionMapper.updateById(session);
+        log.info("diagnosis_session_deleted sessionId={} userId={}", id, userId);
+    }
+
+    private DiagnosisSession selectOwnedSession(Long id, Long userId) {
+        var session = sessionMapper.selectOne(new LambdaQueryWrapper<DiagnosisSession>()
+                .eq(DiagnosisSession::getId, id)
+                .eq(DiagnosisSession::getUserId, userId)
+                .eq(DiagnosisSession::getDeleted, 0)
+                .last("LIMIT 1"));
+        if (session == null) {
+            throw new BusinessException(404, "排障会话不存在");
+        }
+        return session;
+    }
+
+    private DiagnosisResult selectLatestResult(Long sessionId) {
+        return resultMapper.selectOne(new LambdaQueryWrapper<DiagnosisResult>()
+                .eq(DiagnosisResult::getSessionId, sessionId)
+                .orderByDesc(DiagnosisResult::getCreatedAt)
+                .last("LIMIT 1"));
+    }
+
+    private AnalyzeResponse buildStubAnalysis(Long sessionId, Long messageId) {
+        var commands = List.of(
+                new CommandSuggestion("systemctl status docker", "查看 Docker 服务状态", "LOW", ""),
+                new CommandSuggestion("groups", "查看当前用户所属用户组", "LOW", ""),
+                new CommandSuggestion("sudo usermod -aG docker $USER", "将当前用户加入 docker 用户组", "MEDIUM", "docker 用户组权限较高，请确认用户可信。")
+        );
+        return new AnalyzeResponse(
+                sessionId,
+                messageId,
+                null,
+                "当前用户可能没有权限访问 Docker daemon socket。",
+                List.of("当前用户不在 docker 用户组中", "Docker 服务未启动", "docker.sock 权限异常"),
+                List.of("检查 Docker 服务状态", "检查当前用户所属用户组", "检查 /var/run/docker.sock 权限"),
+                List.of("如果用户不在 docker 组中，可加入 docker 用户组", "重新登录终端后再次执行 docker ps"),
+                commands,
+                "MEDIUM",
+                List.of("加入 docker 用户组会提升用户权限，请确认用户可信。"),
+                false,
+                false,
+                "规范 Docker 用户组授权，避免给普通用户过高权限。",
+                List.of()
+        );
+    }
+
+    private AnalyzeResponse applyRiskDetection(AnalyzeResponse response, AnalyzeRequest request) {
+        var detection = riskDetectionService.detect(
+                response.commands(),
+                List.of(
+                        blankToEmpty(request.description()),
+                        blankToEmpty(request.logContent()),
+                        blankToEmpty(request.commandOutput())
+                )
+        );
+        var riskWarnings = new LinkedHashSet<String>();
+        riskWarnings.addAll(response.riskWarnings() == null ? List.of() : response.riskWarnings());
+        riskWarnings.addAll(detection.warnings());
+        var riskLevel = RiskLevel.max(response.riskLevel(), detection.riskLevel());
+        return new AnalyzeResponse(
+                response.sessionId(),
+                response.messageId(),
+                response.resultId(),
+                response.summary(),
+                response.possibleCauses(),
+                response.checkSteps(),
+                response.fixSteps(),
+                detection.commands(),
+                riskLevel,
+                List.copyOf(riskWarnings),
+                response.needRestart(),
+                response.dataRisk() || "HIGH".equals(riskLevel) || "CRITICAL".equals(riskLevel),
+                response.prevention(),
+                response.needMoreInfo()
+        );
+    }
+
+    private String buildUserContent(AnalyzeRequest request) {
+        return """
+                标题：%s
+                类型：%s
+                环境：%s
+                是否生产：%s
+
+                故障描述：
+                %s
+
+                日志内容：
+                %s
+
+                命令输出：
+                %s
+                """.formatted(
+                request.title(),
+                blankToDash(request.category()),
+                blankToDash(request.environment()),
+                Boolean.TRUE.equals(request.isProduction()) ? "是" : "否",
+                blankToDash(request.description()),
+                blankToDash(request.logContent()),
+                blankToDash(request.commandOutput())
+        );
+    }
+
+    private String blankToDash(String value) {
+        return StringUtils.hasText(value) ? value : "-";
+    }
+
+    private String blankToEmpty(String value) {
+        return StringUtils.hasText(value) ? value : "";
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            throw new BusinessException(500, "分析结果序列化失败");
+        }
+    }
+}
