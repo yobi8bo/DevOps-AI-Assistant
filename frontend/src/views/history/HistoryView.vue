@@ -51,7 +51,6 @@
             <a-button type="link" class="table-link" @click="openDetail(record.id)">
               {{ record.title }}
             </a-button>
-            <div class="muted-line">{{ record.summary || record.environment || '-' }}</div>
           </template>
           <template v-else-if="column.key === 'isProduction'">
             <a-tag :color="record.isProduction ? 'red' : 'green'">
@@ -115,16 +114,16 @@
           </a-card>
 
           <a-card title="继续分析" :bordered="false">
-            <a-space direction="vertical" class="follow-up-box">
+            <div class="history-follow-up">
               <a-textarea
                 v-model:value="followUpContent"
-                :rows="4"
+                :rows="3"
                 placeholder="补充新的日志、命令输出或排查结果"
               />
               <a-button type="primary" :loading="followUpLoading" @click="submitFollowUp">
                 发送追问
               </a-button>
-            </a-space>
+            </div>
           </a-card>
 
           <a-card title="会话消息" :bordered="false">

@@ -39,7 +39,6 @@
               <template #bodyCell="{ column, record }">
                 <template v-if="column.key === 'title'">
                   <router-link class="table-link" to="/history">{{ record.title }}</router-link>
-                  <div class="muted-line">{{ record.summary || record.environment || '-' }}</div>
                 </template>
                 <template v-else-if="column.key === 'riskLevel'">
                   <a-tag :color="riskColor(record.riskLevel)">{{ record.riskLevel }}</a-tag>

@@ -300,6 +300,17 @@ body {
   gap: 16px;
 }
 
+.history-follow-up {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.history-follow-up .ant-btn {
+  min-width: 96px;
+}
+
 .message-title {
   display: flex;
   gap: 8px;
@@ -453,6 +464,14 @@ body {
   }
 
   .follow-up-controls .ant-btn {
+    justify-self: end;
+  }
+
+  .history-follow-up {
+    grid-template-columns: 1fr;
+  }
+
+  .history-follow-up .ant-btn {
     justify-self: end;
   }
 }
