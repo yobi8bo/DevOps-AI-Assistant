@@ -7,11 +7,25 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+/**
+ * GlobalExceptionHandler类，负责承载对应业务能力。
+ * 
+ * @author zhang
+ * @date 2026-06-29
+ */
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /**
+     * 日志记录器。
+     */
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    /**
+     * 执行handleBusinessException处理逻辑。
+     * @param exception exception参数。
+     * @return 处理结果。
+     */
 
     @ExceptionHandler(BusinessException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -19,6 +33,11 @@ public class GlobalExceptionHandler {
         log.warn("business_exception code={} message={}", exception.getCode(), exception.getMessage());
         return ApiResponse.failure(exception.getCode(), exception.getMessage());
     }
+    /**
+     * 执行handleValidationException处理逻辑。
+     * @param exception exception参数。
+     * @return 处理结果。
+     */
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -28,6 +47,11 @@ public class GlobalExceptionHandler {
         log.warn("validation_exception message={}", message);
         return ApiResponse.failure(400, message);
     }
+    /**
+     * 执行handleException处理逻辑。
+     * @param exception exception参数。
+     * @return 处理结果。
+     */
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

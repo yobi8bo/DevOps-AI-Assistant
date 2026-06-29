@@ -32,20 +32,59 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+/**
+ * DiagnosisService服务类，负责封装对应模块的业务逻辑。
+ * 
+ * @author zhang
+ * @date 2026-06-29
+ */
 
 @Service
 public class DiagnosisService {
 
+    /**
+     * 日志记录器。
+     */
     private static final Logger log = LoggerFactory.getLogger(DiagnosisService.class);
 
+    /**
+     * 默认诊断状态。
+     */
     private static final String DEFAULT_STATUS = "WAITING_CONFIRM";
 
+    /**
+     * 诊断会话数据访问对象。
+     */
     private final DiagnosisSessionMapper sessionMapper;
+    /**
+     * 诊断消息数据访问对象。
+     */
     private final DiagnosisMessageMapper messageMapper;
+    /**
+     * 诊断结果数据访问对象。
+     */
     private final DiagnosisResultMapper resultMapper;
+    /**
+     * AI诊断服务。
+     */
     private final AiDiagnosisService aiDiagnosisService;
+    /**
+     * 风险检测服务。
+     */
     private final RiskDetectionService riskDetectionService;
+    /**
+     * JSON序列化组件。
+     */
     private final ObjectMapper objectMapper;
+    /**
+     * 创建DiagnosisService实例。
+     * @param sessionMapper sessionMapper参数。
+     * @param messageMapper messageMapper参数。
+     * @param resultMapper resultMapper参数。
+     * @param aiDiagnosisService aiDiagnosisService参数。
+     * @param riskDetectionService riskDetectionService参数。
+     * @param objectMapper objectMapper参数。
+     */
 
     public DiagnosisService(
             DiagnosisSessionMapper sessionMapper,
@@ -62,6 +101,12 @@ public class DiagnosisService {
         this.riskDetectionService = riskDetectionService;
         this.objectMapper = objectMapper;
     }
+    /**
+     * 执行智能诊断分析。
+     * @param request request参数。
+     * @param userId userId参数。
+     * @return 处理结果。
+     */
 
     @Transactional
     public AnalyzeResponse analyze(AnalyzeRequest request, Long userId) {
@@ -155,6 +200,12 @@ public class DiagnosisService {
                 response.needMoreInfo()
         );
     }
+    /**
+     * 执行listSessions处理逻辑。
+     * @param query query参数。
+     * @param userId userId参数。
+     * @return 处理结果。
+     */
 
     public PageResponse<SessionSummary> listSessions(SessionQuery query, Long userId) {
         var wrapper = new LambdaQueryWrapper<DiagnosisSession>()
@@ -196,6 +247,12 @@ public class DiagnosisService {
                 .toList();
         return new PageResponse<>(records, page.getCurrent(), page.getSize(), page.getTotal(), page.getPages());
     }
+    /**
+     * 获取诊断会话。
+     * @param id id参数。
+     * @param userId userId参数。
+     * @return 处理结果。
+     */
 
     public SessionDetail getSession(Long id, Long userId) {
         var session = selectOwnedSession(id, userId);
@@ -230,6 +287,12 @@ public class DiagnosisService {
                 session.getUpdatedAt()
         );
     }
+    /**
+     * 更新业务状态。
+     * @param id id参数。
+     * @param status status参数。
+     * @param userId userId参数。
+     */
 
     @Transactional
     public void updateStatus(Long id, String status, Long userId) {
@@ -239,6 +302,11 @@ public class DiagnosisService {
         sessionMapper.updateById(session);
         log.info("diagnosis_status_updated sessionId={} userId={} status={}", id, userId, status);
     }
+    /**
+     * 删除诊断会话。
+     * @param id id参数。
+     * @param userId userId参数。
+     */
 
     @Transactional
     public void deleteSession(Long id, Long userId) {
@@ -248,6 +316,12 @@ public class DiagnosisService {
         sessionMapper.updateById(session);
         log.info("diagnosis_session_deleted sessionId={} userId={}", id, userId);
     }
+    /**
+     * 查询当前用户拥有的诊断会话。
+     * @param id id参数。
+     * @param userId userId参数。
+     * @return 处理结果。
+     */
 
     private DiagnosisSession selectOwnedSession(Long id, Long userId) {
         var session = sessionMapper.selectOne(new LambdaQueryWrapper<DiagnosisSession>()
@@ -260,6 +334,11 @@ public class DiagnosisService {
         }
         return session;
     }
+    /**
+     * 查询会话最新诊断结果。
+     * @param sessionId sessionId参数。
+     * @return 处理结果。
+     */
 
     private DiagnosisResult selectLatestResult(Long sessionId) {
         return resultMapper.selectOne(new LambdaQueryWrapper<DiagnosisResult>()
@@ -267,6 +346,12 @@ public class DiagnosisService {
                 .orderByDesc(DiagnosisResult::getCreatedAt)
                 .last("LIMIT 1"));
     }
+    /**
+     * 构建兜底诊断结果。
+     * @param sessionId sessionId参数。
+     * @param messageId messageId参数。
+     * @return 处理结果。
+     */
 
     private AnalyzeResponse buildStubAnalysis(Long sessionId, Long messageId) {
         var commands = List.of(
@@ -291,6 +376,12 @@ public class DiagnosisService {
                 List.of()
         );
     }
+    /**
+     * 应用风险检测结果。
+     * @param response response参数。
+     * @param request request参数。
+     * @return 处理结果。
+     */
 
     private AnalyzeResponse applyRiskDetection(AnalyzeResponse response, AnalyzeRequest request) {
         var detection = riskDetectionService.detect(
@@ -322,6 +413,11 @@ public class DiagnosisService {
                 response.needMoreInfo()
         );
     }
+    /**
+     * 构建发送给AI的用户内容。
+     * @param request request参数。
+     * @return 处理结果。
+     */
 
     private String buildUserContent(AnalyzeRequest request) {
         return """
@@ -348,14 +444,29 @@ public class DiagnosisService {
                 blankToDash(request.commandOutput())
         );
     }
+    /**
+     * 空值转换为短横线。
+     * @param value value参数。
+     * @return 处理结果。
+     */
 
     private String blankToDash(String value) {
         return StringUtils.hasText(value) ? value : "-";
     }
+    /**
+     * 空值转换为空字符串。
+     * @param value value参数。
+     * @return 处理结果。
+     */
 
     private String blankToEmpty(String value) {
         return StringUtils.hasText(value) ? value : "";
     }
+    /**
+     * 转换为JSON字符串。
+     * @param value value参数。
+     * @return 处理结果。
+     */
 
     private String toJson(Object value) {
         try {

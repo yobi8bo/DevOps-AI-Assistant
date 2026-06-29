@@ -15,17 +15,40 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+/**
+ * AiClient类，负责承载对应业务能力。
+ * 
+ * @author zhang
+ * @date 2026-06-29
+ */
 
 @Component
 public class AiClient {
 
+    /**
+     * 日志记录器。
+     */
     private static final Logger log = LoggerFactory.getLogger(AiClient.class);
 
+    /**
+     * RestClient构建器。
+     */
     private final RestClient.Builder restClientBuilder;
+    /**
+     * 创建AiClient实例。
+     * @param restClientBuilder restClientBuilder参数。
+     */
 
     public AiClient(RestClient.Builder restClientBuilder) {
         this.restClientBuilder = restClientBuilder;
     }
+    /**
+     * 执行createResponse处理逻辑。
+     * @param modelConfig modelConfig参数。
+     * @param systemPrompt systemPrompt参数。
+     * @param userPrompt userPrompt参数。
+     * @return 处理结果。
+     */
 
     public AiResponse createResponse(ResolvedModelConfig modelConfig, String systemPrompt, String userPrompt) {
         var endpoint = normalizeBaseUrl(modelConfig.baseUrl()) + "/v1/responses";
@@ -70,6 +93,10 @@ public class AiClient {
             throw new BusinessException(502, "AI 调用失败：" + exception.getMessage());
         }
     }
+    /**
+     * 执行jsonSchemaFormat处理逻辑。
+     * @return 处理结果。
+     */
 
     private Map<String, Object> jsonSchemaFormat() {
         var properties = new LinkedHashMap<String, Object>();
@@ -121,14 +148,27 @@ public class AiClient {
                 )
         );
     }
+    /**
+     * 执行stringArraySchema处理逻辑。
+     * @return 处理结果。
+     */
 
     private Map<String, Object> stringArraySchema() {
         return Map.of("type", "array", "items", Map.of("type", "string"));
     }
+    /**
+     * 执行riskLevelSchema处理逻辑。
+     * @return 处理结果。
+     */
 
     private Map<String, Object> riskLevelSchema() {
         return Map.of("type", "string", "enum", List.of("LOW", "MEDIUM", "HIGH", "CRITICAL"));
     }
+    /**
+     * 执行extractText处理逻辑。
+     * @param body body参数。
+     * @return 处理结果。
+     */
 
     private String extractText(JsonNode body) {
         if (StringUtils.hasText(body.path("output_text").asText(null))) {
@@ -151,10 +191,21 @@ public class AiClient {
         }
         throw new BusinessException(502, "AI 响应缺少 output_text");
     }
+    /**
+     * 执行usage处理逻辑。
+     * @param body body参数。
+     * @param field field参数。
+     * @return 处理结果。
+     */
 
     private int usage(JsonNode body, String field) {
         return body.path("usage").path(field).asInt(0);
     }
+    /**
+     * 执行normalizeBaseUrl处理逻辑。
+     * @param baseUrl baseUrl参数。
+     * @return 处理结果。
+     */
 
     private String normalizeBaseUrl(String baseUrl) {
         var value = StringUtils.hasText(baseUrl) ? baseUrl.trim() : "https://api.nexustokenai.com";
@@ -166,6 +217,12 @@ public class AiClient {
         }
         return value;
     }
+    /**
+     * AiResponse响应对象，负责封装接口返回数据。
+     * 
+     * @author zhang
+     * @date 2026-06-29
+     */
 
     public record AiResponse(
             String text,
@@ -173,6 +230,10 @@ public class AiClient {
             int promptTokens,
             int completionTokens
     ) {
+        /**
+         * 转换业务数据视图。
+         * @return 处理结果。
+         */
         public int totalTokens() {
             return promptTokens + completionTokens;
         }

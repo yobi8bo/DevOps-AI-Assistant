@@ -13,17 +13,39 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+/**
+ * ModelConfigService服务类，负责封装对应模块的业务逻辑。
+ * 
+ * @author zhang
+ * @date 2026-06-29
+ */
 
 @Service
 public class ModelConfigService {
 
+    /**
+     * 模型配置数据访问对象。
+     */
     private final ModelConfigMapper modelConfigMapper;
+    /**
+     * AI默认配置。
+     */
     private final AiProperties aiProperties;
+    /**
+     * 创建ModelConfigService实例。
+     * @param modelConfigMapper modelConfigMapper参数。
+     * @param aiProperties aiProperties参数。
+     */
 
     public ModelConfigService(ModelConfigMapper modelConfigMapper, AiProperties aiProperties) {
         this.modelConfigMapper = modelConfigMapper;
         this.aiProperties = aiProperties;
     }
+    /**
+     * 解析可用模型配置。
+     * @param modelConfigId modelConfigId参数。
+     * @return 处理结果。
+     */
 
     public ResolvedModelConfig resolve(Long modelConfigId) {
         var modelConfig = modelConfigId == null ? selectDefaultModel() : selectById(modelConfigId);
@@ -46,6 +68,14 @@ public class ModelConfigService {
                 firstInt(modelConfig.getTimeoutSeconds(), aiProperties.getTimeoutSeconds())
         );
     }
+    /**
+     * 执行list处理逻辑。
+     * @param keyword keyword参数。
+     * @param status status参数。
+     * @param pageNum pageNum参数。
+     * @param pageSize pageSize参数。
+     * @return 处理结果。
+     */
 
     public PageResponse<ModelConfigSummary> list(String keyword, Integer status, long pageNum, long pageSize) {
         var wrapper = new LambdaQueryWrapper<ModelConfig>()
@@ -66,10 +96,21 @@ public class ModelConfigService {
         var records = page.getRecords().stream().map(this::toSummary).toList();
         return new PageResponse<>(records, page.getCurrent(), page.getSize(), page.getTotal(), page.getPages());
     }
+    /**
+     * 查询详情。
+     * @param id id参数。
+     * @return 处理结果。
+     */
 
     public ModelConfigDetail get(Long id) {
         return toDetail(selectExisting(id));
     }
+    /**
+     * 创建业务数据。
+     * @param request request参数。
+     * @param userId userId参数。
+     * @return 处理结果。
+     */
 
     @Transactional
     public ModelConfigDetail create(SaveModelConfigRequest request, Long userId) {
@@ -85,6 +126,13 @@ public class ModelConfigService {
         modelConfigMapper.insert(entity);
         return toDetail(entity);
     }
+    /**
+     * 更新业务数据。
+     * @param id id参数。
+     * @param request request参数。
+     * @param userId userId参数。
+     * @return 处理结果。
+     */
 
     @Transactional
     public ModelConfigDetail update(Long id, SaveModelConfigRequest request, Long userId) {
@@ -103,6 +151,12 @@ public class ModelConfigService {
         modelConfigMapper.updateById(entity);
         return toDetail(selectExisting(id));
     }
+    /**
+     * 更新业务状态。
+     * @param id id参数。
+     * @param status status参数。
+     * @param userId userId参数。
+     */
 
     @Transactional
     public void updateStatus(Long id, Integer status, Long userId) {
@@ -114,6 +168,11 @@ public class ModelConfigService {
         entity.setUpdatedBy(userId);
         modelConfigMapper.updateById(entity);
     }
+    /**
+     * 设置default字段。
+     * @param id id参数。
+     * @param userId userId参数。
+     */
 
     @Transactional
     public void setDefault(Long id, Long userId) {
@@ -126,6 +185,11 @@ public class ModelConfigService {
         entity.setUpdatedBy(userId);
         modelConfigMapper.updateById(entity);
     }
+    /**
+     * 删除业务数据。
+     * @param id id参数。
+     * @param userId userId参数。
+     */
 
     @Transactional
     public void delete(Long id, Long userId) {
@@ -134,6 +198,12 @@ public class ModelConfigService {
         entity.setUpdatedBy(userId);
         modelConfigMapper.updateById(entity);
     }
+    /**
+     * 解析用于测试的模型配置。
+     * @param id id参数。
+     * @param apiKeyOverride apiKeyOverride参数。
+     * @return 处理结果。
+     */
 
     public ResolvedModelConfig resolveForTest(Long id, String apiKeyOverride) {
         var entity = selectExisting(id);
@@ -153,6 +223,11 @@ public class ModelConfigService {
                 firstInt(entity.getTimeoutSeconds(), aiProperties.getTimeoutSeconds())
         );
     }
+    /**
+     * 按ID查询数据。
+     * @param modelConfigId modelConfigId参数。
+     * @return 处理结果。
+     */
 
     private ModelConfig selectById(Long modelConfigId) {
         var modelConfig = modelConfigMapper.selectOne(new LambdaQueryWrapper<ModelConfig>()
@@ -165,6 +240,10 @@ public class ModelConfigService {
         }
         return modelConfig;
     }
+    /**
+     * 查询默认模型配置。
+     * @return 处理结果。
+     */
 
     private ModelConfig selectDefaultModel() {
         return modelConfigMapper.selectOne(new LambdaQueryWrapper<ModelConfig>()
@@ -174,6 +253,11 @@ public class ModelConfigService {
                 .orderByDesc(ModelConfig::getUpdatedAt)
                 .last("LIMIT 1"));
     }
+    /**
+     * 查询并校验业务数据存在。
+     * @param id id参数。
+     * @return 处理结果。
+     */
 
     private ModelConfig selectExisting(Long id) {
         var entity = modelConfigMapper.selectOne(new LambdaQueryWrapper<ModelConfig>()
@@ -185,6 +269,11 @@ public class ModelConfigService {
         }
         return entity;
     }
+    /**
+     * 填充实体属性。
+     * @param entity entity参数。
+     * @param request request参数。
+     */
 
     private void fill(ModelConfig entity, SaveModelConfigRequest request) {
         if (!StringUtils.hasText(request.provider())) {
@@ -207,6 +296,9 @@ public class ModelConfigService {
         entity.setTemperature(BigDecimal.valueOf(request.temperature() == null ? 0.3 : request.temperature()));
         entity.setTimeoutSeconds(request.timeoutSeconds() == null ? 60 : request.timeoutSeconds());
     }
+    /**
+     * 执行clearDefaultModel处理逻辑。
+     */
 
     private void clearDefaultModel() {
         modelConfigMapper.selectList(new LambdaQueryWrapper<ModelConfig>()
@@ -217,6 +309,10 @@ public class ModelConfigService {
                     modelConfigMapper.updateById(item);
                 });
     }
+    /**
+     * 执行clearDefaultModelExcept处理逻辑。
+     * @param id id参数。
+     */
 
     private void clearDefaultModelExcept(Long id) {
         modelConfigMapper.selectList(new LambdaQueryWrapper<ModelConfig>()
@@ -228,6 +324,11 @@ public class ModelConfigService {
                     modelConfigMapper.updateById(item);
                 });
     }
+    /**
+     * 转换为摘要视图。
+     * @param entity entity参数。
+     * @return 处理结果。
+     */
 
     private ModelConfigSummary toSummary(ModelConfig entity) {
         return new ModelConfigSummary(
@@ -246,6 +347,11 @@ public class ModelConfigService {
                 entity.getUpdatedAt()
         );
     }
+    /**
+     * 转换为详情视图。
+     * @param entity entity参数。
+     * @return 处理结果。
+     */
 
     private ModelConfigDetail toDetail(ModelConfig entity) {
         var summary = toSummary(entity);
@@ -265,6 +371,10 @@ public class ModelConfigService {
                 summary.updatedAt()
         );
     }
+    /**
+     * 执行fromProperties处理逻辑。
+     * @return 处理结果。
+     */
 
     private ResolvedModelConfig fromProperties() {
         if (!StringUtils.hasText(aiProperties.getApiKey())) {
@@ -282,18 +392,42 @@ public class ModelConfigService {
                 aiProperties.getTimeoutSeconds()
         );
     }
+    /**
+     * 执行firstText处理逻辑。
+     * @param value value参数。
+     * @param fallback fallback参数。
+     * @return 处理结果。
+     */
 
     private String firstText(String value, String fallback) {
         return StringUtils.hasText(value) ? value : fallback;
     }
+    /**
+     * 执行firstInt处理逻辑。
+     * @param value value参数。
+     * @param fallback fallback参数。
+     * @return 处理结果。
+     */
 
     private Integer firstInt(Integer value, Integer fallback) {
         return value == null ? fallback : value;
     }
+    /**
+     * 执行firstDouble处理逻辑。
+     * @param value value参数。
+     * @param fallback fallback参数。
+     * @return 处理结果。
+     */
 
     private Double firstDouble(BigDecimal value, Double fallback) {
         return value == null ? fallback : value.doubleValue();
     }
+    /**
+     * ResolvedModelConfig配置类，负责声明对应模块的基础配置。
+     * 
+     * @author zhang
+     * @date 2026-06-29
+     */
 
     public record ResolvedModelConfig(
             Long id,
@@ -307,6 +441,12 @@ public class ModelConfigService {
             Integer timeoutSeconds
     ) {
     }
+    /**
+     * SaveModelConfigRequest请求对象，负责承载接口入参。
+     * 
+     * @author zhang
+     * @date 2026-06-29
+     */
 
     public record SaveModelConfigRequest(
             String provider,
@@ -321,6 +461,12 @@ public class ModelConfigService {
             Integer status
     ) {
     }
+    /**
+     * ModelConfigSummary数据传输对象，负责承载不可变数据。
+     * 
+     * @author zhang
+     * @date 2026-06-29
+     */
 
     public record ModelConfigSummary(
             Long id,
@@ -338,6 +484,12 @@ public class ModelConfigService {
             java.time.LocalDateTime updatedAt
     ) {
     }
+    /**
+     * ModelConfigDetail数据传输对象，负责承载不可变数据。
+     * 
+     * @author zhang
+     * @date 2026-06-29
+     */
 
     public record ModelConfigDetail(
             Long id,

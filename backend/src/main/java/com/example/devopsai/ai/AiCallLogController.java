@@ -10,16 +10,42 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+/**
+ * AiCallLogController控制器，负责处理对应模块的HTTP请求。
+ * 
+ * @author zhang
+ * @date 2026-06-29
+ */
 
 @RestController
 @RequestMapping("/api/ai-call-logs")
 public class AiCallLogController {
 
+    /**
+     * AI调用日志服务。
+     */
     private final AiCallLogService aiCallLogService;
+    /**
+     * 创建AiCallLogController实例。
+     * @param aiCallLogService aiCallLogService参数。
+     */
 
     public AiCallLogController(AiCallLogService aiCallLogService) {
         this.aiCallLogService = aiCallLogService;
     }
+    /**
+     * 分页查询列表。
+     * @param keyword keyword参数。
+     * @param success success参数。
+     * @param modelConfigId modelConfigId参数。
+     * @param sessionId sessionId参数。
+     * @param userId userId参数。
+     * @param startTime startTime参数。
+     * @param endTime endTime参数。
+     * @param pageNum pageNum参数。
+     * @param pageSize pageSize参数。
+     * @return 处理结果。
+     */
 
     @GetMapping
     public ApiResponse<PageResponse<AiCallLogItem>> list(

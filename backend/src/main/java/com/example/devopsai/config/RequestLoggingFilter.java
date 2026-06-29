@@ -11,12 +11,32 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+/**
+ * RequestLoggingFilter过滤器，负责处理请求过滤逻辑。
+ * 
+ * @author zhang
+ * @date 2026-06-29
+ */
 
 @Component
 public class RequestLoggingFilter extends OncePerRequestFilter {
 
+    /**
+     * 日志记录器。
+     */
     private static final Logger log = LoggerFactory.getLogger(RequestLoggingFilter.class);
+    /**
+     * 请求ID。
+     */
     private static final String REQUEST_ID = "requestId";
+    /**
+     * 执行JWT认证过滤。
+     * @param request request参数。
+     * @param response response参数。
+     * @param filterChain filterChain参数。
+     * @throws ServletException ServletException异常。
+     * @throws IOException IOException异常。
+     */
 
     @Override
     protected void doFilterInternal(

@@ -23,14 +23,35 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+/**
+ * ModelConfigController控制器，负责处理对应模块的HTTP请求。
+ * 
+ * @author zhang
+ * @date 2026-06-29
+ */
 
 @RestController
 @RequestMapping("/api/model-configs")
 public class ModelConfigController {
 
+    /**
+     * 模型配置服务。
+     */
     private final ModelConfigService modelConfigService;
+    /**
+     * AI客户端。
+     */
     private final AiClient aiClient;
+    /**
+     * AI调用日志服务。
+     */
     private final AiCallLogService aiCallLogService;
+    /**
+     * 创建ModelConfigController实例。
+     * @param modelConfigService modelConfigService参数。
+     * @param aiClient aiClient参数。
+     * @param aiCallLogService aiCallLogService参数。
+     */
 
     public ModelConfigController(
             ModelConfigService modelConfigService,
@@ -41,6 +62,14 @@ public class ModelConfigController {
         this.aiClient = aiClient;
         this.aiCallLogService = aiCallLogService;
     }
+    /**
+     * 分页查询列表。
+     * @param keyword keyword参数。
+     * @param status status参数。
+     * @param pageNum pageNum参数。
+     * @param pageSize pageSize参数。
+     * @return 处理结果。
+     */
 
     @GetMapping
     public ApiResponse<PageResponse<ModelConfigSummary>> list(
@@ -51,11 +80,22 @@ public class ModelConfigController {
     ) {
         return ApiResponse.success(modelConfigService.list(keyword, status, pageNum, pageSize));
     }
+    /**
+     * 执行get处理逻辑。
+     * @param id id参数。
+     * @return 处理结果。
+     */
 
     @GetMapping("/{id}")
     public ApiResponse<ModelConfigDetail> get(@PathVariable Long id) {
         return ApiResponse.success(modelConfigService.get(id));
     }
+    /**
+     * 执行create处理逻辑。
+     * @param request request参数。
+     * @param principal principal参数。
+     * @return 处理结果。
+     */
 
     @PostMapping
     public ApiResponse<ModelConfigDetail> create(
@@ -64,6 +104,13 @@ public class ModelConfigController {
     ) {
         return ApiResponse.success("创建成功", modelConfigService.create(request, principal.getId()));
     }
+    /**
+     * 执行update处理逻辑。
+     * @param id id参数。
+     * @param request request参数。
+     * @param principal principal参数。
+     * @return 处理结果。
+     */
 
     @PutMapping("/{id}")
     public ApiResponse<ModelConfigDetail> update(
@@ -73,6 +120,13 @@ public class ModelConfigController {
     ) {
         return ApiResponse.success("保存成功", modelConfigService.update(id, request, principal.getId()));
     }
+    /**
+     * 执行updateStatus处理逻辑。
+     * @param id id参数。
+     * @param request request参数。
+     * @param principal principal参数。
+     * @return 处理结果。
+     */
 
     @PatchMapping("/{id}/status")
     public ApiResponse<Boolean> updateStatus(
@@ -83,6 +137,12 @@ public class ModelConfigController {
         modelConfigService.updateStatus(id, request.status(), principal.getId());
         return ApiResponse.success("状态已更新", true);
     }
+    /**
+     * 设置对应属性值。
+     * @param id id参数。
+     * @param principal principal参数。
+     * @return 处理结果。
+     */
 
     @PostMapping("/{id}/default")
     public ApiResponse<Boolean> setDefault(
@@ -92,6 +152,13 @@ public class ModelConfigController {
         modelConfigService.setDefault(id, principal.getId());
         return ApiResponse.success("默认模型已更新", true);
     }
+    /**
+     * 执行test处理逻辑。
+     * @param id id参数。
+     * @param request request参数。
+     * @param principal principal参数。
+     * @return 处理结果。
+     */
 
     @PostMapping("/{id}/test")
     public ApiResponse<TestConnectionResponse> test(
@@ -117,6 +184,12 @@ public class ModelConfigController {
             throw exception;
         }
     }
+    /**
+     * 执行delete处理逻辑。
+     * @param id id参数。
+     * @param principal principal参数。
+     * @return 处理结果。
+     */
 
     @DeleteMapping("/{id}")
     public ApiResponse<Boolean> delete(
@@ -126,12 +199,30 @@ public class ModelConfigController {
         modelConfigService.delete(id, principal.getId());
         return ApiResponse.success("删除成功", true);
     }
+    /**
+     * UpdateStatusRequest请求对象，负责承载接口入参。
+     * 
+     * @author zhang
+     * @date 2026-06-29
+     */
 
     public record UpdateStatusRequest(Integer status) {
     }
+    /**
+     * TestConnectionRequest请求对象，负责承载接口入参。
+     * 
+     * @author zhang
+     * @date 2026-06-29
+     */
 
     public record TestConnectionRequest(String apiKey) {
     }
+    /**
+     * TestConnectionResponse响应对象，负责封装接口返回数据。
+     * 
+     * @author zhang
+     * @date 2026-06-29
+     */
 
     public record TestConnectionResponse(
             Boolean success,

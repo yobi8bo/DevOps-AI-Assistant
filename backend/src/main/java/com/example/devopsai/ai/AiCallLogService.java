@@ -12,15 +12,33 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+/**
+ * AiCallLogService服务类，负责封装对应模块的业务逻辑。
+ * 
+ * @author zhang
+ * @date 2026-06-29
+ */
 
 @Service
 public class AiCallLogService {
 
+    /**
+     * AI调用日志数据访问对象。
+     */
     private final AiCallLogMapper aiCallLogMapper;
+    /**
+     * 创建AiCallLogService实例。
+     * @param aiCallLogMapper aiCallLogMapper参数。
+     */
 
     public AiCallLogService(AiCallLogMapper aiCallLogMapper) {
         this.aiCallLogMapper = aiCallLogMapper;
     }
+    /**
+     * 执行list处理逻辑。
+     * @param query query参数。
+     * @return 处理结果。
+     */
 
     public PageResponse<AiCallLogItem> list(LogQuery query) {
         var wrapper = new LambdaQueryWrapper<AiCallLog>()
@@ -57,6 +75,15 @@ public class AiCallLogService {
         var records = page.getRecords().stream().map(this::toItem).toList();
         return new PageResponse<>(records, page.getCurrent(), page.getSize(), page.getTotal(), page.getPages());
     }
+    /**
+     * 执行logSuccess处理逻辑。
+     * @param requestId requestId参数。
+     * @param userId userId参数。
+     * @param sessionId sessionId参数。
+     * @param modelConfig modelConfig参数。
+     * @param response response参数。
+     * @param latencyMs latencyMs参数。
+     */
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logSuccess(
@@ -74,6 +101,16 @@ public class AiCallLogService {
         log.setTotalTokens(response.totalTokens());
         aiCallLogMapper.insert(log);
     }
+    /**
+     * 执行logFailure处理逻辑。
+     * @param requestId requestId参数。
+     * @param userId userId参数。
+     * @param sessionId sessionId参数。
+     * @param modelConfig modelConfig参数。
+     * @param errorCode errorCode参数。
+     * @param errorMessage errorMessage参数。
+     * @param latencyMs latencyMs参数。
+     */
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logFailure(
@@ -91,6 +128,15 @@ public class AiCallLogService {
         log.setErrorMessage(errorMessage == null ? null : errorMessage.substring(0, Math.min(errorMessage.length(), 1000)));
         aiCallLogMapper.insert(log);
     }
+    /**
+     * 执行baseLog处理逻辑。
+     * @param requestId requestId参数。
+     * @param userId userId参数。
+     * @param sessionId sessionId参数。
+     * @param modelConfig modelConfig参数。
+     * @param latencyMs latencyMs参数。
+     * @return 处理结果。
+     */
 
     private AiCallLog baseLog(
             String requestId,
@@ -109,6 +155,11 @@ public class AiCallLogService {
         log.setLatencyMs((int) Math.min(latencyMs, Integer.MAX_VALUE));
         return log;
     }
+    /**
+     * 转换业务数据视图。
+     * @param log log参数。
+     * @return 处理结果。
+     */
 
     private AiCallLogItem toItem(AiCallLog log) {
         return new AiCallLogItem(
@@ -129,6 +180,12 @@ public class AiCallLogService {
                 log.getCreatedAt()
         );
     }
+    /**
+     * LogQuery数据传输对象，负责承载不可变数据。
+     * 
+     * @author zhang
+     * @date 2026-06-29
+     */
 
     public record LogQuery(
             String keyword,
@@ -142,6 +199,12 @@ public class AiCallLogService {
             long pageSize
     ) {
     }
+    /**
+     * AiCallLogItem数据传输对象，负责承载不可变数据。
+     * 
+     * @author zhang
+     * @date 2026-06-29
+     */
 
     public record AiCallLogItem(
             Long id,

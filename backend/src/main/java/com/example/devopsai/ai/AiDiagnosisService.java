@@ -13,15 +13,44 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+/**
+ * AiDiagnosisService服务类，负责封装对应模块的业务逻辑。
+ * 
+ * @author zhang
+ * @date 2026-06-29
+ */
 
 @Service
 public class AiDiagnosisService {
 
+    /**
+     * 模型配置服务。
+     */
     private final ModelConfigService modelConfigService;
+    /**
+     * 提示词模板服务。
+     */
     private final PromptTemplateService promptTemplateService;
+    /**
+     * AI客户端。
+     */
     private final AiClient aiClient;
+    /**
+     * AI调用日志服务。
+     */
     private final AiCallLogService aiCallLogService;
+    /**
+     * JSON序列化组件。
+     */
     private final ObjectMapper objectMapper;
+    /**
+     * 创建AiDiagnosisService实例。
+     * @param modelConfigService modelConfigService参数。
+     * @param promptTemplateService promptTemplateService参数。
+     * @param aiClient aiClient参数。
+     * @param aiCallLogService aiCallLogService参数。
+     * @param objectMapper objectMapper参数。
+     */
 
     public AiDiagnosisService(
             ModelConfigService modelConfigService,
@@ -36,6 +65,13 @@ public class AiDiagnosisService {
         this.aiCallLogService = aiCallLogService;
         this.objectMapper = objectMapper;
     }
+    /**
+     * 执行智能诊断分析。
+     * @param request request参数。
+     * @param sessionId sessionId参数。
+     * @param userId userId参数。
+     * @return 处理结果。
+     */
 
     public DiagnosisAiResult analyze(AnalyzeRequest request, Long sessionId, Long userId) {
         var modelConfig = modelConfigService.resolve(request.modelConfigId());
@@ -63,6 +99,12 @@ public class AiDiagnosisService {
             throw exception;
         }
     }
+    /**
+     * 转换业务数据视图。
+     * @param content content参数。
+     * @param sessionId sessionId参数。
+     * @return 处理结果。
+     */
 
     private AnalyzeResponse toAnalyzeResponse(String content, Long sessionId) {
         try {
@@ -87,6 +129,10 @@ public class AiDiagnosisService {
             throw new BusinessException(502, "AI 返回内容不是合法诊断 JSON");
         }
     }
+    /**
+     * 执行systemPrompt处理逻辑。
+     * @return 处理结果。
+     */
 
     private String systemPrompt() {
         return """
@@ -99,6 +145,11 @@ public class AiDiagnosisService {
                 5. riskLevel 只能是 LOW、MEDIUM、HIGH、CRITICAL。
                 """;
     }
+    /**
+     * 执行stripJsonFence处理逻辑。
+     * @param content content参数。
+     * @return 处理结果。
+     */
 
     private String stripJsonFence(String content) {
         var value = content == null ? "" : content.trim();
@@ -112,6 +163,11 @@ public class AiDiagnosisService {
         }
         return value;
     }
+    /**
+     * 执行normalizeRiskLevel处理逻辑。
+     * @param value value参数。
+     * @return 处理结果。
+     */
 
     private String normalizeRiskLevel(String value) {
         if (value == null) {
@@ -124,14 +180,30 @@ public class AiDiagnosisService {
             default -> "LOW";
         };
     }
+    /**
+     * 执行nullToEmpty处理逻辑。
+     * @param value value参数。
+     * @return 处理结果。
+     */
 
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
     }
+    /**
+     * 执行safeList处理逻辑。
+     * @param values values参数。
+     * @return 处理结果。
+     */
 
     private <T> List<T> safeList(List<T> values) {
         return values == null ? List.of() : values;
     }
+    /**
+     * DiagnosisAiResult结果实体，负责保存诊断结果数据。
+     * 
+     * @author zhang
+     * @date 2026-06-29
+     */
 
     public record DiagnosisAiResult(
             AnalyzeResponse response,
@@ -141,6 +213,21 @@ public class AiDiagnosisService {
             String promptVersion
     ) {
     }
+    /**
+     * 执行AiDiagnosisPayload业务逻辑。
+     * @param summary summary参数。
+     * @param possibleCauses possibleCauses参数。
+     * @param checkSteps checkSteps参数。
+     * @param fixSteps fixSteps参数。
+     * @param commands commands参数。
+     * @param riskLevel riskLevel参数。
+     * @param riskWarnings riskWarnings参数。
+     * @param needRestart needRestart参数。
+     * @param dataRisk dataRisk参数。
+     * @param prevention prevention参数。
+     * @param needMoreInfo needMoreInfo参数。
+     * @return 处理结果。
+     */
 
     private record AiDiagnosisPayload(
             String summary,

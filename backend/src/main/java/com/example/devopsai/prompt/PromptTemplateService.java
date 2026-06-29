@@ -13,15 +13,37 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+/**
+ * PromptTemplateService服务类，负责封装对应模块的业务逻辑。
+ * 
+ * @author zhang
+ * @date 2026-06-29
+ */
 
 @Service
 public class PromptTemplateService {
 
+    /**
+     * 提示词模板数据访问对象。
+     */
     private final PromptTemplateMapper promptTemplateMapper;
+    /**
+     * 创建PromptTemplateService实例。
+     * @param promptTemplateMapper promptTemplateMapper参数。
+     */
 
     public PromptTemplateService(PromptTemplateMapper promptTemplateMapper) {
         this.promptTemplateMapper = promptTemplateMapper;
     }
+    /**
+     * 执行list处理逻辑。
+     * @param keyword keyword参数。
+     * @param category category参数。
+     * @param status status参数。
+     * @param pageNum pageNum参数。
+     * @param pageSize pageSize参数。
+     * @return 处理结果。
+     */
 
     public PageResponse<PromptTemplateSummary> list(String keyword, String category, Integer status, long pageNum, long pageSize) {
         var wrapper = new LambdaQueryWrapper<PromptTemplate>()
@@ -43,10 +65,21 @@ public class PromptTemplateService {
         var records = page.getRecords().stream().map(this::toSummary).toList();
         return new PageResponse<>(records, page.getCurrent(), page.getSize(), page.getTotal(), page.getPages());
     }
+    /**
+     * 查询详情。
+     * @param id id参数。
+     * @return 处理结果。
+     */
 
     public PromptTemplateDetail get(Long id) {
         return toDetail(selectExisting(id));
     }
+    /**
+     * 创建业务数据。
+     * @param request request参数。
+     * @param userId userId参数。
+     * @return 处理结果。
+     */
 
     @Transactional
     public PromptTemplateDetail create(SavePromptTemplateRequest request, Long userId) {
@@ -62,6 +95,13 @@ public class PromptTemplateService {
         promptTemplateMapper.insert(entity);
         return toDetail(entity);
     }
+    /**
+     * 更新业务数据。
+     * @param id id参数。
+     * @param request request参数。
+     * @param userId userId参数。
+     * @return 处理结果。
+     */
 
     @Transactional
     public PromptTemplateDetail update(Long id, SavePromptTemplateRequest request, Long userId) {
@@ -80,6 +120,12 @@ public class PromptTemplateService {
         promptTemplateMapper.updateById(entity);
         return toDetail(selectExisting(id));
     }
+    /**
+     * 更新业务状态。
+     * @param id id参数。
+     * @param status status参数。
+     * @param userId userId参数。
+     */
 
     @Transactional
     public void updateStatus(Long id, Integer status, Long userId) {
@@ -91,6 +137,11 @@ public class PromptTemplateService {
         entity.setUpdatedBy(userId);
         promptTemplateMapper.updateById(entity);
     }
+    /**
+     * 设置default字段。
+     * @param id id参数。
+     * @param userId userId参数。
+     */
 
     @Transactional
     public void setDefault(Long id, Long userId) {
@@ -103,6 +154,11 @@ public class PromptTemplateService {
         entity.setUpdatedBy(userId);
         promptTemplateMapper.updateById(entity);
     }
+    /**
+     * 删除业务数据。
+     * @param id id参数。
+     * @param userId userId参数。
+     */
 
     @Transactional
     public void delete(Long id, Long userId) {
@@ -111,6 +167,11 @@ public class PromptTemplateService {
         entity.setUpdatedBy(userId);
         promptTemplateMapper.updateById(entity);
     }
+    /**
+     * 执行renderForDiagnosis处理逻辑。
+     * @param request request参数。
+     * @return 处理结果。
+     */
 
     public RenderedPrompt renderForDiagnosis(AnalyzeRequest request) {
         var template = selectForCategory(request.category());
@@ -119,6 +180,11 @@ public class PromptTemplateService {
         }
         return new RenderedPrompt(template.getId(), template.getVersion(), render(template.getContent(), request));
     }
+    /**
+     * 查询并返回符合条件的业务数据。
+     * @param category category参数。
+     * @return 处理结果。
+     */
 
     private PromptTemplate selectForCategory(String category) {
         if (StringUtils.hasText(category)) {
@@ -141,6 +207,12 @@ public class PromptTemplateService {
                 .orderByDesc(PromptTemplate::getUpdatedAt)
                 .last("LIMIT 1"));
     }
+    /**
+     * 执行render处理逻辑。
+     * @param content content参数。
+     * @param request request参数。
+     * @return 处理结果。
+     */
 
     private String render(String content, AnalyzeRequest request) {
         var values = Map.ofEntries(
@@ -162,6 +234,11 @@ public class PromptTemplateService {
         }
         return rendered;
     }
+    /**
+     * 执行defaultPrompt处理逻辑。
+     * @param request request参数。
+     * @return 处理结果。
+     */
 
     private String defaultPrompt(AnalyzeRequest request) {
         return """
@@ -198,6 +275,11 @@ public class PromptTemplateService {
                 nullToDash(request.commandOutput())
         );
     }
+    /**
+     * 查询并校验业务数据存在。
+     * @param id id参数。
+     * @return 处理结果。
+     */
 
     private PromptTemplate selectExisting(Long id) {
         var entity = promptTemplateMapper.selectOne(new LambdaQueryWrapper<PromptTemplate>()
@@ -209,6 +291,11 @@ public class PromptTemplateService {
         }
         return entity;
     }
+    /**
+     * 填充实体属性。
+     * @param entity entity参数。
+     * @param request request参数。
+     */
 
     private void fill(PromptTemplate entity, SavePromptTemplateRequest request) {
         if (!StringUtils.hasText(request.name())) {
@@ -222,6 +309,11 @@ public class PromptTemplateService {
         entity.setContent(request.content());
         entity.setVersion(StringUtils.hasText(request.version()) ? request.version() : "1.0.0");
     }
+    /**
+     * 执行clearDefaultForCategory处理逻辑。
+     * @param category category参数。
+     * @param exceptId exceptId参数。
+     */
 
     private void clearDefaultForCategory(String category, Long exceptId) {
         var wrapper = new LambdaQueryWrapper<PromptTemplate>()
@@ -241,6 +333,11 @@ public class PromptTemplateService {
             promptTemplateMapper.updateById(item);
         });
     }
+    /**
+     * 转换为摘要视图。
+     * @param entity entity参数。
+     * @return 处理结果。
+     */
 
     private PromptTemplateSummary toSummary(PromptTemplate entity) {
         return new PromptTemplateSummary(
@@ -254,6 +351,11 @@ public class PromptTemplateService {
                 entity.getUpdatedAt()
         );
     }
+    /**
+     * 转换为详情视图。
+     * @param entity entity参数。
+     * @return 处理结果。
+     */
 
     private PromptTemplateDetail toDetail(PromptTemplate entity) {
         return new PromptTemplateDetail(
@@ -268,13 +370,30 @@ public class PromptTemplateService {
                 entity.getUpdatedAt()
         );
     }
+    /**
+     * 执行nullToDash处理逻辑。
+     * @param value value参数。
+     * @return 处理结果。
+     */
 
     private String nullToDash(String value) {
         return StringUtils.hasText(value) ? value : "-";
     }
+    /**
+     * RenderedPrompt数据传输对象，负责承载不可变数据。
+     * 
+     * @author zhang
+     * @date 2026-06-29
+     */
 
     public record RenderedPrompt(Long templateId, String version, String content) {
     }
+    /**
+     * SavePromptTemplateRequest请求对象，负责承载接口入参。
+     * 
+     * @author zhang
+     * @date 2026-06-29
+     */
 
     public record SavePromptTemplateRequest(
             String name,
@@ -285,6 +404,12 @@ public class PromptTemplateService {
             Integer status
     ) {
     }
+    /**
+     * PromptTemplateSummary数据传输对象，负责承载不可变数据。
+     * 
+     * @author zhang
+     * @date 2026-06-29
+     */
 
     public record PromptTemplateSummary(
             Long id,
@@ -297,6 +422,12 @@ public class PromptTemplateService {
             java.time.LocalDateTime updatedAt
     ) {
     }
+    /**
+     * PromptTemplateDetail数据传输对象，负责承载不可变数据。
+     * 
+     * @author zhang
+     * @date 2026-06-29
+     */
 
     public record PromptTemplateDetail(
             Long id,

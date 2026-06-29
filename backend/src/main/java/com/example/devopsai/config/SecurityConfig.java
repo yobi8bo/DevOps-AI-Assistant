@@ -14,13 +14,26 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+/**
+ * SecurityConfig配置类，负责声明对应模块的基础配置。
+ * 
+ * @author zhang
+ * @date 2026-06-29
+ */
 
 @Configuration
 @EnableWebSecurity
 @EnableConfigurationProperties(JwtProperties.class)
 public class SecurityConfig {
 
+    /**
+     * JWT认证过滤器。
+     */
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    /**
+     * 创建SecurityConfig实例。
+     * @param jwtAuthenticationFilter jwtAuthenticationFilter参数。
+     */
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
