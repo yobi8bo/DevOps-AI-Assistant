@@ -2,8 +2,8 @@ package com.example.devopsai.operationlog;
 
 import com.example.devopsai.common.ApiResponse;
 import com.example.devopsai.common.PageResponse;
-import com.example.devopsai.operationlog.OperationLogService.OperationLogQuery;
-import com.example.devopsai.operationlog.OperationLogService.OperationLogSummary;
+import com.example.devopsai.operationlog.dto.OperationLogQuery;
+import com.example.devopsai.operationlog.vo.OperationLogSummary;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;

@@ -1,12 +1,12 @@
 package com.example.devopsai.category;
 
 import com.example.devopsai.auth.AppUserPrincipal;
-import com.example.devopsai.category.FaultCategoryService.CategoryOption;
-import com.example.devopsai.category.FaultCategoryService.CategoryQuery;
-import com.example.devopsai.category.FaultCategoryService.CategorySummary;
-import com.example.devopsai.category.FaultCategoryService.CreateCategoryRequest;
-import com.example.devopsai.category.FaultCategoryService.UpdateCategoryRequest;
-import com.example.devopsai.category.FaultCategoryService.UpdateCategoryStatusRequest;
+import com.example.devopsai.category.dto.CategoryQuery;
+import com.example.devopsai.category.dto.CreateCategoryRequest;
+import com.example.devopsai.category.dto.UpdateCategoryRequest;
+import com.example.devopsai.category.dto.UpdateCategoryStatusRequest;
+import com.example.devopsai.category.vo.CategoryOption;
+import com.example.devopsai.category.vo.CategorySummary;
 import com.example.devopsai.common.ApiResponse;
 import com.example.devopsai.common.PageResponse;
 import jakarta.validation.Valid;

@@ -2,6 +2,7 @@ package com.example.devopsai.report;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.devopsai.common.BusinessException;
+import com.example.devopsai.common.ErrorCode;
 import com.example.devopsai.diagnosis.entity.DiagnosisMessage;
 import com.example.devopsai.diagnosis.entity.DiagnosisResult;
 import com.example.devopsai.diagnosis.entity.DiagnosisSession;
@@ -10,6 +11,8 @@ import com.example.devopsai.diagnosis.mapper.DiagnosisResultMapper;
 import com.example.devopsai.diagnosis.mapper.DiagnosisSessionMapper;
 import com.example.devopsai.report.entity.ReportItem;
 import com.example.devopsai.report.mapper.ReportMapper;
+import com.example.devopsai.report.vo.ReportDetail;
+import com.example.devopsai.report.vo.ReportSummary;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -164,7 +167,10 @@ public class ReportService {
                 Integer.valueOf(1).equals(session.getIsProduction()) ? "是" : "否",
                 nullToDash(session.getUrgencyLevel()),
                 firstText(firstUserMessage, "-"),
-                firstText(joinArray(resultJson, "possibleCauses"), nullToDash(latestResult == null ? null : latestResult.getSummary())),
+                firstText(
+                        joinArray(resultJson, "possibleCauses"),
+                        nullToDash(latestResult == null ? null : latestResult.getSummary())
+                ),
                 firstText(conversation, "-"),
                 firstText(joinArray(resultJson, "fixSteps"), "-"),
                 nullToDash(latestResult == null ? null : latestResult.getRiskLevel()),
@@ -182,7 +188,7 @@ public class ReportService {
                 .eq(DiagnosisSession::getDeleted, 0)
                 .last("LIMIT 1"));
         if (session == null) {
-            throw new BusinessException(404, "排障会话不存在");
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "排障会话不存在");
         }
         return session;
     }
@@ -190,7 +196,7 @@ public class ReportService {
     private ReportItem selectExisting(Long id) {
         var entity = reportMapper.selectById(id);
         if (entity == null) {
-            throw new BusinessException(404, "复盘报告不存在");
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "复盘报告不存在");
         }
         return entity;
     }
@@ -289,24 +295,4 @@ public class ReportService {
         );
     }
 
-    public record ReportSummary(
-            Long id,
-            Long sessionId,
-            String title,
-            String format,
-            Long createdBy,
-            LocalDateTime createdAt
-    ) {
-    }
-
-    public record ReportDetail(
-            Long id,
-            Long sessionId,
-            String title,
-            String format,
-            String content,
-            Long createdBy,
-            LocalDateTime createdAt
-    ) {
-    }
 }

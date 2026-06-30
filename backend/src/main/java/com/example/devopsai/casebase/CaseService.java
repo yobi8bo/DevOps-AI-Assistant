@@ -2,9 +2,15 @@ package com.example.devopsai.casebase;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.devopsai.casebase.dto.CaseQuery;
+import com.example.devopsai.casebase.dto.SaveCaseFromSessionRequest;
+import com.example.devopsai.casebase.dto.SaveCaseRequest;
 import com.example.devopsai.casebase.entity.CaseItem;
 import com.example.devopsai.casebase.mapper.CaseMapper;
+import com.example.devopsai.casebase.vo.CaseDetail;
+import com.example.devopsai.casebase.vo.CaseSummary;
 import com.example.devopsai.common.BusinessException;
+import com.example.devopsai.common.ErrorCode;
 import com.example.devopsai.common.PageResponse;
 import com.example.devopsai.diagnosis.entity.DiagnosisMessage;
 import com.example.devopsai.diagnosis.entity.DiagnosisResult;
@@ -15,7 +21,6 @@ import com.example.devopsai.diagnosis.mapper.DiagnosisSessionMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -27,7 +32,8 @@ import org.springframework.util.StringUtils;
 public class CaseService {
 
     private static final String STATUS_DRAFT = "DRAFT";
-    private static final Set<String> VALID_STATUSES = Set.of("DRAFT", "PENDING_REVIEW", "PUBLISHED", "REJECTED", "OFFLINE");
+    private static final Set<String> VALID_STATUSES = Set.of(
+            "DRAFT", "PENDING_REVIEW", "PUBLISHED", "REJECTED", "OFFLINE");
 
     private final CaseMapper caseMapper;
     private final DiagnosisSessionMapper sessionMapper;
@@ -141,9 +147,15 @@ public class CaseService {
         entity.setEnvironment(firstText(request == null ? null : request.environment(), session.getEnvironment()));
         entity.setSymptom(firstText(request == null ? null : request.symptom(), firstUserMessage));
         entity.setLogContent(firstText(request == null ? null : request.logContent(), firstUserMessage));
-        entity.setCauseAnalysis(firstText(request == null ? null : request.causeAnalysis(), joinArray(resultJson, "possibleCauses")));
+        entity.setCauseAnalysis(firstText(
+                request == null ? null : request.causeAnalysis(),
+                joinArray(resultJson, "possibleCauses")
+        ));
         entity.setSolution(firstText(request == null ? null : request.solution(), buildSolution(resultJson)));
-        entity.setPrevention(firstText(request == null ? null : request.prevention(), textField(resultJson, "prevention")));
+        entity.setPrevention(firstText(
+                request == null ? null : request.prevention(),
+                textField(resultJson, "prevention")
+        ));
         entity.setCommands(firstJson(request == null ? null : request.commands(), jsonField(resultJson, "commands")));
         entity.setTags(toJson(request == null ? null : request.tags()));
         entity.setStatus(StringUtils.hasText(request == null ? null : request.status())
@@ -158,7 +170,7 @@ public class CaseService {
 
     private void fill(CaseItem entity, SaveCaseRequest request) {
         if (!StringUtils.hasText(request.title())) {
-            throw new BusinessException(400, "案例标题不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "案例标题不能为空");
         }
         entity.setSourceSessionId(request.sourceSessionId());
         entity.setTitle(request.title());
@@ -179,7 +191,7 @@ public class CaseService {
                 .eq(CaseItem::getDeleted, 0)
                 .last("LIMIT 1"));
         if (entity == null) {
-            throw new BusinessException(404, "案例不存在");
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "案例不存在");
         }
         return entity;
     }
@@ -191,7 +203,7 @@ public class CaseService {
                 .eq(DiagnosisSession::getDeleted, 0)
                 .last("LIMIT 1"));
         if (session == null) {
-            throw new BusinessException(404, "排障会话不存在");
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "排障会话不存在");
         }
         return session;
     }
@@ -218,11 +230,11 @@ public class CaseService {
 
     private String normalizeStatus(String status) {
         if (!StringUtils.hasText(status)) {
-            throw new BusinessException(400, "案例状态不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "案例状态不能为空");
         }
         var normalized = status.trim().toUpperCase();
         if (!VALID_STATUSES.contains(normalized)) {
-            throw new BusinessException(400, "案例状态参数错误");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "案例状态参数错误");
         }
         return normalized;
     }
@@ -313,7 +325,7 @@ public class CaseService {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException exception) {
-            throw new BusinessException(400, "JSON 数据格式错误");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "JSON 数据格式错误");
         }
     }
 
@@ -340,85 +352,4 @@ public class CaseService {
         }
     }
 
-    public record CaseQuery(
-            String keyword,
-            String category,
-            String status,
-            String tag,
-            long pageNum,
-            long pageSize
-    ) {
-    }
-
-    public record SaveCaseRequest(
-            Long sourceSessionId,
-            @NotBlank String title,
-            String category,
-            String environment,
-            String symptom,
-            String logContent,
-            String causeAnalysis,
-            String solution,
-            String prevention,
-            Object commands,
-            List<String> tags,
-            String status
-    ) {
-    }
-
-    public record SaveCaseFromSessionRequest(
-            String title,
-            String category,
-            String environment,
-            String symptom,
-            String logContent,
-            String causeAnalysis,
-            String solution,
-            String prevention,
-            Object commands,
-            List<String> tags,
-            String status
-    ) {
-    }
-
-    public record UpdateCaseStatusRequest(@NotBlank String status) {
-    }
-
-    public record CaseSummary(
-            Long id,
-            Long sourceSessionId,
-            String title,
-            String category,
-            String environment,
-            String status,
-            List<String> tags,
-            Long createdBy,
-            Long reviewedBy,
-            LocalDateTime reviewedAt,
-            LocalDateTime createdAt,
-            LocalDateTime updatedAt
-    ) {
-    }
-
-    public record CaseDetail(
-            Long id,
-            Long sourceSessionId,
-            String title,
-            String category,
-            String environment,
-            String symptom,
-            String logContent,
-            String causeAnalysis,
-            String solution,
-            String prevention,
-            JsonNode commands,
-            List<String> tags,
-            String status,
-            Long createdBy,
-            Long reviewedBy,
-            LocalDateTime reviewedAt,
-            LocalDateTime createdAt,
-            LocalDateTime updatedAt
-    ) {
-    }
 }

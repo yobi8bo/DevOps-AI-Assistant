@@ -1,9 +1,11 @@
 package com.example.devopsai.ai;
 
 import com.example.devopsai.common.BusinessException;
-import com.example.devopsai.diagnosis.DiagnosisController.AnalyzeRequest;
-import com.example.devopsai.diagnosis.DiagnosisController.AnalyzeResponse;
-import com.example.devopsai.diagnosis.DiagnosisController.CommandSuggestion;
+import com.example.devopsai.common.ErrorCode;
+import com.example.devopsai.diagnosis.dto.AnalyzeRequest;
+import com.example.devopsai.diagnosis.vo.AnalyzeResponse;
+import com.example.devopsai.diagnosis.vo.CommandSuggestion;
+import com.example.devopsai.ai.vo.DiagnosisAiResult;
 import com.example.devopsai.knowledge.KnowledgeService;
 import com.example.devopsai.model.ModelConfigService;
 import com.example.devopsai.prompt.PromptTemplateService;
@@ -83,7 +85,8 @@ public class AiDiagnosisService {
     public DiagnosisAiResult analyze(AnalyzeRequest request, Long sessionId, Long userId) {
         var modelConfig = modelConfigService.resolve(request.modelConfigId());
         var renderedPrompt = promptTemplateService.renderForDiagnosis(request);
-        var userPrompt = appendKnowledgeContext(renderedPrompt.content(), knowledgeService.buildRelevantKnowledgeContext(request));
+        var knowledgeContext = knowledgeService.buildRelevantKnowledgeContext(request);
+        var userPrompt = appendKnowledgeContext(renderedPrompt.content(), knowledgeContext);
         var requestId = UUID.randomUUID().toString();
         var startedAt = Instant.now();
         try {
@@ -99,11 +102,15 @@ public class AiDiagnosisService {
             );
         } catch (BusinessException exception) {
             var latencyMs = Duration.between(startedAt, Instant.now()).toMillis();
-            aiCallLogService.logFailure(requestId, userId, sessionId, modelConfig, String.valueOf(exception.getCode()), exception.getMessage(), latencyMs);
+            aiCallLogService.logFailure(
+                    requestId, userId, sessionId, modelConfig,
+                    exception.getCode(), exception.getMessage(), latencyMs);
             throw exception;
         } catch (RuntimeException exception) {
             var latencyMs = Duration.between(startedAt, Instant.now()).toMillis();
-            aiCallLogService.logFailure(requestId, userId, sessionId, modelConfig, "AI_RUNTIME_ERROR", exception.getMessage(), latencyMs);
+            aiCallLogService.logFailure(
+                    requestId, userId, sessionId, modelConfig,
+                    "AI_RUNTIME_ERROR", exception.getMessage(), latencyMs);
             throw exception;
         }
     }
@@ -134,7 +141,7 @@ public class AiDiagnosisService {
                     safeList(payload.needMoreInfo())
             );
         } catch (JsonProcessingException exception) {
-            throw new BusinessException(502, "AI 返回内容不是合法诊断 JSON");
+            throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID, "AI 返回内容不是合法诊断 JSON");
         }
     }
 
@@ -219,21 +226,6 @@ public class AiDiagnosisService {
 
     private <T> List<T> safeList(List<T> values) {
         return values == null ? List.of() : values;
-    }
-    /**
-     * DiagnosisAiResult结果实体，负责保存诊断结果数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record DiagnosisAiResult(
-            AnalyzeResponse response,
-            String rawResponse,
-            Long modelConfigId,
-            Long promptTemplateId,
-            String promptVersion
-    ) {
     }
     /**
      * 执行AiDiagnosisPayload业务逻辑。

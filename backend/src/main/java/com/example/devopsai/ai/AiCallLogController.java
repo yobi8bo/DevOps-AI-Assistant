@@ -1,7 +1,7 @@
 package com.example.devopsai.ai;
 
-import com.example.devopsai.ai.AiCallLogService.AiCallLogItem;
-import com.example.devopsai.ai.AiCallLogService.LogQuery;
+import com.example.devopsai.ai.dto.AiCallLogQuery;
+import com.example.devopsai.ai.vo.AiCallLogItem;
 import com.example.devopsai.common.ApiResponse;
 import com.example.devopsai.common.PageResponse;
 import java.time.LocalDateTime;
@@ -59,7 +59,7 @@ public class AiCallLogController {
             @RequestParam(defaultValue = "1") long pageNum,
             @RequestParam(defaultValue = "10") long pageSize
     ) {
-        return ApiResponse.success(aiCallLogService.list(new LogQuery(
+        return ApiResponse.success(aiCallLogService.list(new AiCallLogQuery(
                 keyword,
                 success,
                 modelConfigId,

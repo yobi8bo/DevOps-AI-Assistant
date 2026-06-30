@@ -5,9 +5,12 @@ import com.example.devopsai.ai.AiClient;
 import com.example.devopsai.auth.AppUserPrincipal;
 import com.example.devopsai.common.ApiResponse;
 import com.example.devopsai.common.PageResponse;
-import com.example.devopsai.model.ModelConfigService.ModelConfigDetail;
-import com.example.devopsai.model.ModelConfigService.ModelConfigSummary;
-import com.example.devopsai.model.ModelConfigService.SaveModelConfigRequest;
+import com.example.devopsai.model.dto.SaveModelConfigRequest;
+import com.example.devopsai.model.dto.TestConnectionRequest;
+import com.example.devopsai.model.dto.UpdateStatusRequest;
+import com.example.devopsai.model.vo.ModelConfigDetail;
+import com.example.devopsai.model.vo.ModelConfigSummary;
+import com.example.devopsai.model.vo.TestConnectionResponse;
 import jakarta.validation.Valid;
 import java.time.Duration;
 import java.time.Instant;
@@ -33,6 +36,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/model-configs")
 public class ModelConfigController {
+
+    private static final String CONNECTIVITY_TEST_PROMPT = "返回一个最小 JSON：" +
+            "{\"summary\":\"ok\",\"possibleCauses\":[],\"checkSteps\":[],\"fixSteps\":[]," +
+            "\"commands\":[],\"riskLevel\":\"LOW\",\"riskWarnings\":[],\"needRestart\":false," +
+            "\"dataRisk\":false,\"prevention\":\"\",\"needMoreInfo\":[]}";
 
     /**
      * 模型配置服务。
@@ -173,14 +181,16 @@ public class ModelConfigController {
             var response = aiClient.createResponse(
                     modelConfig,
                     "你是连通性测试助手，只返回 JSON。",
-                    "返回一个最小 JSON：{\"summary\":\"ok\",\"possibleCauses\":[],\"checkSteps\":[],\"fixSteps\":[],\"commands\":[],\"riskLevel\":\"LOW\",\"riskWarnings\":[],\"needRestart\":false,\"dataRisk\":false,\"prevention\":\"\",\"needMoreInfo\":[]}"
+                    CONNECTIVITY_TEST_PROMPT
             );
             var latencyMs = Duration.between(startedAt, Instant.now()).toMillis();
             aiCallLogService.logSuccess(requestId, principal.getId(), null, modelConfig, response, latencyMs);
             return ApiResponse.success("连接成功", new TestConnectionResponse(true, "连接成功", latencyMs));
         } catch (RuntimeException exception) {
             var latencyMs = Duration.between(startedAt, Instant.now()).toMillis();
-            aiCallLogService.logFailure(requestId, principal.getId(), null, modelConfig, "TEST_FAILED", exception.getMessage(), latencyMs);
+            aiCallLogService.logFailure(
+                    requestId, principal.getId(), null, modelConfig,
+                    "TEST_FAILED", exception.getMessage(), latencyMs);
             throw exception;
         }
     }
@@ -206,28 +216,4 @@ public class ModelConfigController {
      * @date 2026-06-29
      */
 
-    public record UpdateStatusRequest(Integer status) {
-    }
-    /**
-     * TestConnectionRequest请求对象，负责承载接口入参。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record TestConnectionRequest(String apiKey) {
-    }
-    /**
-     * TestConnectionResponse响应对象，负责封装接口返回数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record TestConnectionResponse(
-            Boolean success,
-            String message,
-            Long latencyMs
-    ) {
-    }
 }

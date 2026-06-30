@@ -3,10 +3,15 @@ package com.example.devopsai.diagnosis;
 import com.example.devopsai.auth.AppUserPrincipal;
 import com.example.devopsai.common.ApiResponse;
 import com.example.devopsai.common.PageResponse;
+import com.example.devopsai.diagnosis.dto.AnalyzeRequest;
+import com.example.devopsai.diagnosis.dto.FollowUpRequest;
+import com.example.devopsai.diagnosis.dto.ReanalyzeRequest;
+import com.example.devopsai.diagnosis.dto.SessionQuery;
+import com.example.devopsai.diagnosis.dto.UpdateStatusRequest;
+import com.example.devopsai.diagnosis.vo.AnalyzeResponse;
+import com.example.devopsai.diagnosis.vo.SessionDetail;
+import com.example.devopsai.diagnosis.vo.SessionSummary;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDateTime;
-import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -149,181 +154,5 @@ public class DiagnosisController {
             @AuthenticationPrincipal AppUserPrincipal principal
     ) {
         return ApiResponse.success("分析成功", diagnosisService.reanalyze(id, request, principal.getId()));
-    }
-    /**
-     * AnalyzeRequest请求对象，负责承载接口入参。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record AnalyzeRequest(
-            @NotBlank String title,
-            String category,
-            String environment,
-            String osInfo,
-            String middleware,
-            String serviceType,
-            Boolean isProduction,
-            String urgencyLevel,
-            String description,
-            String logContent,
-            String commandOutput,
-            Long modelConfigId
-    ) {
-    }
-
-    /**
-     * FollowUpRequest请求对象，负责承载继续追问入参。
-     *
-     * @author zhang
-     * @date 2026-06-29
-     */
-    public record FollowUpRequest(
-            @NotBlank String content,
-            Long modelConfigId
-    ) {
-    }
-
-    public record ReanalyzeRequest(
-            Long modelConfigId
-    ) {
-    }
-    /**
-     * AnalyzeResponse响应对象，负责封装接口返回数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record AnalyzeResponse(
-            Long sessionId,
-            Long messageId,
-            Long resultId,
-            String summary,
-            List<String> possibleCauses,
-            List<String> checkSteps,
-            List<String> fixSteps,
-            List<CommandSuggestion> commands,
-            String riskLevel,
-            List<String> riskWarnings,
-            boolean needRestart,
-            boolean dataRisk,
-            String prevention,
-            List<String> needMoreInfo
-    ) {
-    }
-    /**
-     * CommandSuggestion数据传输对象，负责承载不可变数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record CommandSuggestion(
-            String command,
-            String description,
-            String riskLevel,
-            String warning
-    ) {
-    }
-    /**
-     * SessionQuery数据传输对象，负责承载不可变数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record SessionQuery(
-            String keyword,
-            String category,
-            String status,
-            Boolean isProduction,
-            long pageNum,
-            long pageSize
-    ) {
-    }
-    /**
-     * SessionSummary数据传输对象，负责承载不可变数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record SessionSummary(
-            Long id,
-            String title,
-            String category,
-            String environment,
-            Boolean isProduction,
-            String urgencyLevel,
-            String status,
-            String riskLevel,
-            String summary,
-            LocalDateTime createdAt,
-            LocalDateTime updatedAt
-    ) {
-    }
-    /**
-     * SessionDetail数据传输对象，负责承载不可变数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record SessionDetail(
-            Long id,
-            String title,
-            String category,
-            String environment,
-            Boolean isProduction,
-            String urgencyLevel,
-            String status,
-            List<MessageItem> messages,
-            ResultItem latestResult,
-            LocalDateTime createdAt,
-            LocalDateTime updatedAt
-    ) {
-    }
-    /**
-     * MessageItem数据传输对象，负责承载不可变数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record MessageItem(
-            Long id,
-            String role,
-            String content,
-            LocalDateTime createdAt
-    ) {
-    }
-    /**
-     * ResultItem数据传输对象，负责承载不可变数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record ResultItem(
-            Long id,
-            String summary,
-            String riskLevel,
-            String resultJson,
-            Long modelConfigId,
-            Long promptTemplateId,
-            String promptVersion,
-            LocalDateTime createdAt
-    ) {
-    }
-    /**
-     * UpdateStatusRequest请求对象，负责承载接口入参。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record UpdateStatusRequest(@NotBlank String status) {
     }
 }

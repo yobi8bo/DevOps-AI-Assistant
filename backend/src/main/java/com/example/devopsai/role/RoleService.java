@@ -3,13 +3,19 @@ package com.example.devopsai.role;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.devopsai.common.BusinessException;
+import com.example.devopsai.common.ErrorCode;
 import com.example.devopsai.common.PageResponse;
+import com.example.devopsai.role.dto.CreateRoleRequest;
+import com.example.devopsai.role.dto.RoleQuery;
+import com.example.devopsai.role.dto.UpdateRolePermissionsRequest;
+import com.example.devopsai.role.dto.UpdateRoleRequest;
 import com.example.devopsai.role.entity.SysPermission;
 import com.example.devopsai.role.entity.SysRole;
 import com.example.devopsai.role.mapper.PermissionMapper;
 import com.example.devopsai.role.mapper.RoleMapper;
-import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDateTime;
+import com.example.devopsai.role.vo.PermissionSummary;
+import com.example.devopsai.role.vo.RoleDetail;
+import com.example.devopsai.role.vo.RoleSummary;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,10 +59,10 @@ public class RoleService {
     @Transactional
     public RoleDetail create(CreateRoleRequest request, Long operatorId) {
         if (!StringUtils.hasText(request.roleCode())) {
-            throw new BusinessException(400, "角色编码不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "角色编码不能为空");
         }
         if (!StringUtils.hasText(request.roleName())) {
-            throw new BusinessException(400, "角色名称不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "角色名称不能为空");
         }
         ensureRoleCodeAvailable(request.roleCode(), null);
         var role = new SysRole();
@@ -126,7 +132,7 @@ public class RoleService {
                 .eq(SysRole::getDeleted, 0)
                 .last("LIMIT 1"));
         if (role == null) {
-            throw new BusinessException(404, "角色不存在");
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "角色不存在");
         }
         return role;
     }
@@ -139,7 +145,7 @@ public class RoleService {
             wrapper.ne(SysRole::getId, exceptId);
         }
         if (roleMapper.selectCount(wrapper) > 0) {
-            throw new BusinessException(409, "角色编码已存在");
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "角色编码已存在");
         }
     }
 
@@ -150,7 +156,7 @@ public class RoleService {
         }
         for (var permissionId : permissionIds.stream().distinct().toList()) {
             if (permissionId == null || roleMapper.countPermissionById(permissionId) == 0) {
-                throw new BusinessException(400, "权限不存在：" + permissionId);
+                throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "权限不存在：" + permissionId);
             }
             roleMapper.insertRolePermission(roleId, permissionId);
         }
@@ -158,7 +164,7 @@ public class RoleService {
 
     private void validateStatus(Integer status) {
         if (status == null || (status != 0 && status != 1)) {
-            throw new BusinessException(400, "角色状态参数错误");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "角色状态参数错误");
         }
     }
 
@@ -199,62 +205,4 @@ public class RoleService {
         );
     }
 
-    public record RoleQuery(String keyword, Integer status, long pageNum, long pageSize) {
-    }
-
-    public record CreateRoleRequest(
-            @NotBlank String roleCode,
-            @NotBlank String roleName,
-            String description,
-            Integer status,
-            List<Long> permissionIds
-    ) {
-    }
-
-    public record UpdateRoleRequest(
-            String roleCode,
-            String roleName,
-            String description,
-            Integer status
-    ) {
-    }
-
-    public record UpdateRoleStatusRequest(Integer status) {
-    }
-
-    public record UpdateRolePermissionsRequest(List<Long> permissionIds) {
-    }
-
-    public record RoleSummary(
-            Long id,
-            String roleCode,
-            String roleName,
-            String description,
-            Boolean enabled,
-            List<String> permissions,
-            LocalDateTime createdAt,
-            LocalDateTime updatedAt
-    ) {
-    }
-
-    public record RoleDetail(
-            Long id,
-            String roleCode,
-            String roleName,
-            String description,
-            Boolean enabled,
-            List<String> permissions,
-            List<Long> permissionIds,
-            LocalDateTime createdAt,
-            LocalDateTime updatedAt
-    ) {
-    }
-
-    public record PermissionSummary(
-            Long id,
-            String permissionCode,
-            String permissionName,
-            String description
-    ) {
-    }
 }

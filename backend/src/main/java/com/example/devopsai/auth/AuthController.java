@@ -2,9 +2,12 @@ package com.example.devopsai.auth;
 
 import com.example.devopsai.common.ApiResponse;
 import com.example.devopsai.common.BusinessException;
+import com.example.devopsai.common.ErrorCode;
+import com.example.devopsai.auth.dto.ChangePasswordRequest;
+import com.example.devopsai.auth.dto.LoginRequest;
+import com.example.devopsai.auth.vo.LoginResponse;
+import com.example.devopsai.auth.vo.UserInfo;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -49,7 +52,11 @@ public class AuthController {
      * @param jwtService jwtService参数。
      */
 
-    public AuthController(UserAccountService userAccountService, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthController(
+            UserAccountService userAccountService,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService
+    ) {
         this.userAccountService = userAccountService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -64,13 +71,18 @@ public class AuthController {
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         var principal = userAccountService.loadByUsername(request.username());
         if (!passwordEncoder.matches(request.password(), principal.getPassword())) {
-            log.warn("login_failed username={}", request.username());
-            throw new BusinessException(401, "用户名或密码错误");
+            log.warn("login_failed userId={}", principal.getId());
+            throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED, "用户名或密码错误");
         }
         userAccountService.recordLogin(principal.getId());
 
         var userInfo = toUserInfo(principal);
-        var response = new LoginResponse(jwtService.createToken(principal), "Bearer", jwtService.expiresSeconds(), userInfo);
+        var response = new LoginResponse(
+                jwtService.createToken(principal),
+                "Bearer",
+                jwtService.expiresSeconds(),
+                userInfo
+        );
         log.info("login_success userId={} username={}", principal.getId(), principal.getUsername());
         return ApiResponse.success("登录成功", response);
     }
@@ -83,7 +95,7 @@ public class AuthController {
     @GetMapping("/me")
     public ApiResponse<UserInfo> me(@AuthenticationPrincipal AppUserPrincipal principal) {
         if (principal == null) {
-            throw new BusinessException(401, "未登录或登录已过期");
+            throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED);
         }
         return ApiResponse.success(toUserInfo(principal));
     }
@@ -103,9 +115,14 @@ public class AuthController {
             @AuthenticationPrincipal AppUserPrincipal principal
     ) {
         if (principal == null) {
-            throw new BusinessException(401, "未登录或登录已过期");
+            throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED);
         }
-        userAccountService.changePassword(principal.getId(), request.oldPassword(), request.newPassword(), passwordEncoder);
+        userAccountService.changePassword(
+                principal.getId(),
+                request.oldPassword(),
+                request.newPassword(),
+                passwordEncoder
+        );
         return ApiResponse.success("密码已修改，请重新登录", true);
     }
     /**
@@ -123,53 +140,5 @@ public class AuthController {
                 principal.getRoles(),
                 principal.getPermissions()
         );
-    }
-    /**
-     * LoginRequest请求对象，负责承载接口入参。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record LoginRequest(
-            @NotBlank String username,
-            @NotBlank String password
-    ) {
-    }
-
-    public record ChangePasswordRequest(
-            @NotBlank String oldPassword,
-            @NotBlank String newPassword
-    ) {
-    }
-    /**
-     * LoginResponse响应对象，负责封装接口返回数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record LoginResponse(
-            String accessToken,
-            String tokenType,
-            long expiresIn,
-            UserInfo userInfo
-    ) {
-    }
-    /**
-     * UserInfo数据传输对象，负责承载不可变数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record UserInfo(
-            Long id,
-            String username,
-            String nickname,
-            String email,
-            List<String> roles,
-            List<String> permissions
-    ) {
     }
 }

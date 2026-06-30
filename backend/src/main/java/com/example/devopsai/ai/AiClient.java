@@ -1,7 +1,10 @@
 package com.example.devopsai.ai;
 
 import com.example.devopsai.common.BusinessException;
-import com.example.devopsai.model.ModelConfigService.ResolvedModelConfig;
+import com.example.devopsai.common.ErrorCode;
+import com.example.devopsai.common.security.SensitiveDataMasker;
+import com.example.devopsai.ai.vo.AiResponse;
+import com.example.devopsai.model.dto.ResolvedModelConfig;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Duration;
 import java.util.LinkedHashMap;
@@ -81,16 +84,23 @@ public class AiClient {
                     .retrieve()
                     .body(JsonNode.class);
             if (body == null) {
-                throw new BusinessException(502, "AI 响应为空");
+                throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID, "AI 响应为空");
             }
-            var response = new AiResponse(extractText(body), body.toString(), usage(body, "input_tokens"), usage(body, "output_tokens"));
+            var response = new AiResponse(
+                    extractText(body),
+                    body.toString(),
+                    usage(body, "input_tokens"),
+                    usage(body, "output_tokens")
+            );
             log.info("ai_request_success provider={} model={} promptTokens={} completionTokens={} totalTokens={}",
-                    modelConfig.provider(), modelConfig.model(), response.promptTokens(), response.completionTokens(), response.totalTokens());
+                    modelConfig.provider(), modelConfig.model(),
+                    response.promptTokens(), response.completionTokens(), response.totalTokens());
             return response;
         } catch (RestClientException exception) {
             log.warn("ai_request_failed provider={} model={} error={}",
-                    modelConfig.provider(), modelConfig.model(), exception.getMessage());
-            throw new BusinessException(502, "AI 调用失败：" + exception.getMessage());
+                    modelConfig.provider(), modelConfig.model(),
+                    SensitiveDataMasker.maskInline(exception.getMessage()));
+            throw new BusinessException(ErrorCode.AI_PROVIDER_CALL_FAILED, "AI 调用失败，请稍后重试");
         }
     }
     /**
@@ -189,7 +199,7 @@ public class AiClient {
                 }
             }
         }
-        throw new BusinessException(502, "AI 响应缺少 output_text");
+        throw new BusinessException(ErrorCode.AI_RESPONSE_INVALID, "AI 响应缺少 output_text");
     }
     /**
      * 执行usage处理逻辑。
@@ -216,26 +226,5 @@ public class AiClient {
             value = value.substring(0, value.length() - 3);
         }
         return value;
-    }
-    /**
-     * AiResponse响应对象，负责封装接口返回数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record AiResponse(
-            String text,
-            String rawResponse,
-            int promptTokens,
-            int completionTokens
-    ) {
-        /**
-         * 转换业务数据视图。
-         * @return 处理结果。
-         */
-        public int totalTokens() {
-            return promptTokens + completionTokens;
-        }
     }
 }

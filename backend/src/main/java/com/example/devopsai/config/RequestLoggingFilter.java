@@ -1,5 +1,6 @@
 package com.example.devopsai.config;
 
+import com.example.devopsai.common.security.SensitiveDataMasker;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -56,9 +57,10 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         } finally {
             var durationMs = System.currentTimeMillis() - startedAt;
             log.info(
-                    "http_request method={} uri={} status={} durationMs={} remoteAddr={}",
+                    "http_request method={} uri={} query={} status={} durationMs={} remoteAddr={}",
                     request.getMethod(),
                     request.getRequestURI(),
+                    SensitiveDataMasker.maskInline(request.getQueryString()),
                     response.getStatus(),
                     durationMs,
                     request.getRemoteAddr()

@@ -4,9 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.devopsai.category.entity.FaultCategory;
 import com.example.devopsai.category.mapper.FaultCategoryMapper;
+import com.example.devopsai.category.dto.CategoryQuery;
+import com.example.devopsai.category.dto.CreateCategoryRequest;
+import com.example.devopsai.category.dto.UpdateCategoryRequest;
+import com.example.devopsai.category.vo.CategoryOption;
+import com.example.devopsai.category.vo.CategorySummary;
 import com.example.devopsai.common.BusinessException;
+import com.example.devopsai.common.ErrorCode;
 import com.example.devopsai.common.PageResponse;
-import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -59,10 +64,10 @@ public class FaultCategoryService {
     @Transactional
     public CategorySummary create(CreateCategoryRequest request, Long operatorId) {
         if (!StringUtils.hasText(request.categoryCode())) {
-            throw new BusinessException(400, "分类编码不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "分类编码不能为空");
         }
         if (!StringUtils.hasText(request.categoryName())) {
-            throw new BusinessException(400, "分类名称不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "分类名称不能为空");
         }
         ensureCodeAvailable(request.categoryCode(), null);
         var entity = new FaultCategory();
@@ -124,7 +129,7 @@ public class FaultCategoryService {
                 .eq(FaultCategory::getId, id)
                 .last("LIMIT 1"));
         if (entity == null) {
-            throw new BusinessException(404, "故障分类不存在");
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "故障分类不存在");
         }
         return entity;
     }
@@ -139,13 +144,13 @@ public class FaultCategoryService {
             wrapper.ne(FaultCategory::getId, exceptId);
         }
         if (faultCategoryMapper.selectCount(wrapper) > 0) {
-            throw new BusinessException(409, "分类编码已存在");
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "分类编码已存在");
         }
     }
 
     private void validateStatus(Integer status) {
         if (status == null || (status != 0 && status != 1)) {
-            throw new BusinessException(400, "分类状态参数错误");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "分类状态参数错误");
         }
     }
 
@@ -162,46 +167,4 @@ public class FaultCategoryService {
         );
     }
 
-    public record CategoryQuery(String keyword, Integer status, long pageNum, long pageSize) {
-    }
-
-    public record CreateCategoryRequest(
-            @NotBlank String categoryCode,
-            @NotBlank String categoryName,
-            String description,
-            Integer sortOrder,
-            Integer status
-    ) {
-    }
-
-    public record UpdateCategoryRequest(
-            String categoryCode,
-            String categoryName,
-            String description,
-            Integer sortOrder,
-            Integer status
-    ) {
-    }
-
-    public record UpdateCategoryStatusRequest(Integer status) {
-    }
-
-    public record CategorySummary(
-            Long id,
-            String categoryCode,
-            String categoryName,
-            String description,
-            Integer sortOrder,
-            Boolean enabled,
-            LocalDateTime createdAt,
-            LocalDateTime updatedAt
-    ) {
-    }
-
-    public record CategoryOption(
-            Long id,
-            String categoryCode,
-            String categoryName
-    ) {
-    }
 }

@@ -3,9 +3,10 @@ package com.example.devopsai.prompt;
 import com.example.devopsai.auth.AppUserPrincipal;
 import com.example.devopsai.common.ApiResponse;
 import com.example.devopsai.common.PageResponse;
-import com.example.devopsai.prompt.PromptTemplateService.PromptTemplateDetail;
-import com.example.devopsai.prompt.PromptTemplateService.PromptTemplateSummary;
-import com.example.devopsai.prompt.PromptTemplateService.SavePromptTemplateRequest;
+import com.example.devopsai.prompt.dto.SavePromptTemplateRequest;
+import com.example.devopsai.prompt.dto.UpdateStatusRequest;
+import com.example.devopsai.prompt.vo.PromptTemplateDetail;
+import com.example.devopsai.prompt.vo.PromptTemplateSummary;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -155,6 +156,4 @@ public class PromptTemplateController {
      * @date 2026-06-29
      */
 
-    public record UpdateStatusRequest(Integer status) {
-    }
 }

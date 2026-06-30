@@ -3,11 +3,17 @@ package com.example.devopsai.user;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.devopsai.common.BusinessException;
+import com.example.devopsai.common.ErrorCode;
 import com.example.devopsai.common.PageResponse;
+import com.example.devopsai.user.dto.CreateUserRequest;
+import com.example.devopsai.user.dto.ResetPasswordRequest;
+import com.example.devopsai.user.dto.UpdateUserRequest;
+import com.example.devopsai.user.dto.UpdateUserRolesRequest;
+import com.example.devopsai.user.dto.UserQuery;
 import com.example.devopsai.user.entity.SysUser;
 import com.example.devopsai.user.mapper.SysUserMapper;
-import jakarta.validation.constraints.NotBlank;
-import java.time.LocalDateTime;
+import com.example.devopsai.user.vo.UserDetail;
+import com.example.devopsai.user.vo.UserSummary;
 import java.util.List;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -54,10 +60,10 @@ public class UserService {
     @Transactional
     public UserDetail create(CreateUserRequest request, Long operatorId) {
         if (!StringUtils.hasText(request.username())) {
-            throw new BusinessException(400, "用户名不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "用户名不能为空");
         }
         if (!StringUtils.hasText(request.password())) {
-            throw new BusinessException(400, "密码不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "密码不能为空");
         }
         ensureUsernameAvailable(request.username(), null);
         var user = new SysUser();
@@ -106,7 +112,7 @@ public class UserService {
     @Transactional
     public void resetPassword(Long id, ResetPasswordRequest request, Long operatorId) {
         if (!StringUtils.hasText(request.password())) {
-            throw new BusinessException(400, "新密码不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "新密码不能为空");
         }
         var user = selectExisting(id);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
@@ -126,7 +132,7 @@ public class UserService {
                 .eq(SysUser::getDeleted, 0)
                 .last("LIMIT 1"));
         if (user == null) {
-            throw new BusinessException(404, "用户不存在");
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "用户不存在");
         }
         return user;
     }
@@ -139,7 +145,7 @@ public class UserService {
             wrapper.ne(SysUser::getId, exceptId);
         }
         if (userMapper.selectCount(wrapper) > 0) {
-            throw new BusinessException(409, "用户名已存在");
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "用户名已存在");
         }
     }
 
@@ -150,7 +156,7 @@ public class UserService {
         }
         for (var roleId : roleIds.stream().distinct().toList()) {
             if (roleId == null || userMapper.countRoleById(roleId) == 0) {
-                throw new BusinessException(400, "角色不存在：" + roleId);
+                throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "角色不存在：" + roleId);
             }
             userMapper.insertUserRole(userId, roleId);
         }
@@ -158,7 +164,7 @@ public class UserService {
 
     private void validateStatus(Integer status) {
         if (status == null || (status != 0 && status != 1)) {
-            throw new BusinessException(400, "用户状态参数错误");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "用户状态参数错误");
         }
     }
 
@@ -194,64 +200,4 @@ public class UserService {
         );
     }
 
-    public record UserQuery(String keyword, Integer status, long pageNum, long pageSize) {
-    }
-
-    public record CreateUserRequest(
-            @NotBlank String username,
-            @NotBlank String password,
-            String nickname,
-            String email,
-            String phone,
-            Integer status,
-            List<Long> roleIds
-    ) {
-    }
-
-    public record UpdateUserRequest(
-            String username,
-            String nickname,
-            String email,
-            String phone,
-            Integer status
-    ) {
-    }
-
-    public record UpdateUserStatusRequest(Integer status) {
-    }
-
-    public record ResetPasswordRequest(@NotBlank String password) {
-    }
-
-    public record UpdateUserRolesRequest(List<Long> roleIds) {
-    }
-
-    public record UserSummary(
-            Long id,
-            String username,
-            String nickname,
-            String email,
-            String phone,
-            Boolean enabled,
-            List<String> roles,
-            LocalDateTime lastLoginAt,
-            LocalDateTime createdAt,
-            LocalDateTime updatedAt
-    ) {
-    }
-
-    public record UserDetail(
-            Long id,
-            String username,
-            String nickname,
-            String email,
-            String phone,
-            Boolean enabled,
-            List<String> roles,
-            List<Long> roleIds,
-            LocalDateTime lastLoginAt,
-            LocalDateTime createdAt,
-            LocalDateTime updatedAt
-    ) {
-    }
 }

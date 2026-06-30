@@ -3,11 +3,13 @@ package com.example.devopsai.ai;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.devopsai.ai.dto.AiCallLogQuery;
 import com.example.devopsai.ai.entity.AiCallLog;
 import com.example.devopsai.ai.mapper.AiCallLogMapper;
+import com.example.devopsai.ai.vo.AiResponse;
+import com.example.devopsai.ai.vo.AiCallLogItem;
 import com.example.devopsai.common.PageResponse;
-import com.example.devopsai.model.ModelConfigService.ResolvedModelConfig;
-import java.time.LocalDateTime;
+import com.example.devopsai.model.dto.ResolvedModelConfig;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,7 +42,7 @@ public class AiCallLogService {
      * @return 处理结果。
      */
 
-    public PageResponse<AiCallLogItem> list(LogQuery query) {
+    public PageResponse<AiCallLogItem> list(AiCallLogQuery query) {
         var wrapper = new LambdaQueryWrapper<AiCallLog>()
                 .orderByDesc(AiCallLog::getCreatedAt);
         if (StringUtils.hasText(query.keyword())) {
@@ -91,7 +93,7 @@ public class AiCallLogService {
             Long userId,
             Long sessionId,
             ResolvedModelConfig modelConfig,
-            AiClient.AiResponse response,
+            AiResponse response,
             long latencyMs
     ) {
         var log = baseLog(requestId, userId, sessionId, modelConfig, latencyMs);
@@ -125,7 +127,9 @@ public class AiCallLogService {
         var log = baseLog(requestId, userId, sessionId, modelConfig, latencyMs);
         log.setSuccess(0);
         log.setErrorCode(errorCode);
-        log.setErrorMessage(errorMessage == null ? null : errorMessage.substring(0, Math.min(errorMessage.length(), 1000)));
+        log.setErrorMessage(errorMessage == null
+                ? null
+                : errorMessage.substring(0, Math.min(errorMessage.length(), 1000)));
         aiCallLogMapper.insert(log);
     }
     /**
@@ -187,41 +191,4 @@ public class AiCallLogService {
      * @date 2026-06-29
      */
 
-    public record LogQuery(
-            String keyword,
-            Boolean success,
-            Long modelConfigId,
-            Long sessionId,
-            Long userId,
-            LocalDateTime startTime,
-            LocalDateTime endTime,
-            long pageNum,
-            long pageSize
-    ) {
-    }
-    /**
-     * AiCallLogItem数据传输对象，负责承载不可变数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record AiCallLogItem(
-            Long id,
-            String requestId,
-            Long userId,
-            Long sessionId,
-            Long modelConfigId,
-            String provider,
-            String modelName,
-            Integer promptTokens,
-            Integer completionTokens,
-            Integer totalTokens,
-            Integer latencyMs,
-            Boolean success,
-            String errorCode,
-            String errorMessage,
-            LocalDateTime createdAt
-    ) {
-    }
 }

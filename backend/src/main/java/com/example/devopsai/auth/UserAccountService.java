@@ -2,6 +2,7 @@ package com.example.devopsai.auth;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.devopsai.common.BusinessException;
+import com.example.devopsai.common.ErrorCode;
 import com.example.devopsai.user.entity.SysUser;
 import com.example.devopsai.user.mapper.SysUserMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -43,12 +44,16 @@ public class UserAccountService implements UserDetailsService {
                 .eq(SysUser::getDeleted, 0)
                 .last("LIMIT 1"));
         if (user == null) {
-            throw new BusinessException(401, "用户名或密码错误");
+            throw new BusinessException(ErrorCode.AUTH_UNAUTHORIZED, "用户名或密码错误");
         }
         if (!Integer.valueOf(1).equals(user.getStatus())) {
-            throw new BusinessException(403, "用户已被禁用");
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN, "用户已被禁用");
         }
-        return new AppUserPrincipal(user, userMapper.selectRoleCodes(user.getId()), userMapper.selectPermissionCodes(user.getId()));
+        return new AppUserPrincipal(
+                user,
+                userMapper.selectRoleCodes(user.getId()),
+                userMapper.selectPermissionCodes(user.getId())
+        );
     }
     /**
      * 记录用户最近登录时间。
@@ -66,16 +71,16 @@ public class UserAccountService implements UserDetailsService {
                 .eq(SysUser::getDeleted, 0)
                 .last("LIMIT 1"));
         if (user == null) {
-            throw new BusinessException(404, "用户不存在");
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "用户不存在");
         }
         if (!Integer.valueOf(1).equals(user.getStatus())) {
-            throw new BusinessException(403, "用户已被禁用");
+            throw new BusinessException(ErrorCode.AUTH_FORBIDDEN, "用户已被禁用");
         }
         if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
-            throw new BusinessException(400, "旧密码不正确");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "旧密码不正确");
         }
         if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
-            throw new BusinessException(400, "新密码不能与旧密码相同");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "新密码不能与旧密码相同");
         }
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setUpdatedBy(userId);

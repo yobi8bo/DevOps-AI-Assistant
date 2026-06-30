@@ -5,9 +5,14 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.devopsai.ai.AiProperties;
 import com.example.devopsai.common.BusinessException;
+import com.example.devopsai.common.ErrorCode;
 import com.example.devopsai.common.PageResponse;
+import com.example.devopsai.model.dto.ResolvedModelConfig;
+import com.example.devopsai.model.dto.SaveModelConfigRequest;
 import com.example.devopsai.model.entity.ModelConfig;
 import com.example.devopsai.model.mapper.ModelConfigMapper;
+import com.example.devopsai.model.vo.ModelConfigDetail;
+import com.example.devopsai.model.vo.ModelConfigSummary;
 import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -54,7 +59,10 @@ public class ModelConfigService {
         }
         var apiKey = firstText(modelConfig.getApiKeyEncrypted(), aiProperties.getApiKey());
         if (!StringUtils.hasText(apiKey)) {
-            throw new BusinessException(400, "未配置 AI API Key，请设置 APP_AI_API_KEY 或模型配置 API Key");
+            throw new BusinessException(
+                    ErrorCode.COMMON_PARAM_INVALID,
+                    "未配置 AI API Key，请设置 APP_AI_API_KEY 或模型配置 API Key"
+            );
         }
         return new ResolvedModelConfig(
                 modelConfig.getId(),
@@ -161,7 +169,7 @@ public class ModelConfigService {
     @Transactional
     public void updateStatus(Long id, Integer status, Long userId) {
         if (status == null || (status != 0 && status != 1)) {
-            throw new BusinessException(400, "状态参数错误");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "状态参数错误");
         }
         var entity = selectExisting(id);
         entity.setStatus(status);
@@ -178,7 +186,7 @@ public class ModelConfigService {
     public void setDefault(Long id, Long userId) {
         var entity = selectExisting(id);
         if (!Integer.valueOf(1).equals(entity.getStatus())) {
-            throw new BusinessException(400, "停用的模型配置不能设为默认");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "停用的模型配置不能设为默认");
         }
         clearDefaultModelExcept(id);
         entity.setDefaultModel(1);
@@ -209,7 +217,7 @@ public class ModelConfigService {
         var entity = selectExisting(id);
         var apiKey = firstText(apiKeyOverride, firstText(entity.getApiKeyEncrypted(), aiProperties.getApiKey()));
         if (!StringUtils.hasText(apiKey)) {
-            throw new BusinessException(400, "未配置 AI API Key");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "未配置 AI API Key");
         }
         return new ResolvedModelConfig(
                 entity.getId(),
@@ -236,7 +244,7 @@ public class ModelConfigService {
                 .eq(ModelConfig::getDeleted, 0)
                 .last("LIMIT 1"));
         if (modelConfig == null) {
-            throw new BusinessException(404, "模型配置不存在或已停用");
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "模型配置不存在或已停用");
         }
         return modelConfig;
     }
@@ -265,7 +273,7 @@ public class ModelConfigService {
                 .eq(ModelConfig::getDeleted, 0)
                 .last("LIMIT 1"));
         if (entity == null) {
-            throw new BusinessException(404, "模型配置不存在");
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "模型配置不存在");
         }
         return entity;
     }
@@ -277,13 +285,13 @@ public class ModelConfigService {
 
     private void fill(ModelConfig entity, SaveModelConfigRequest request) {
         if (!StringUtils.hasText(request.provider())) {
-            throw new BusinessException(400, "模型供应商不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "模型供应商不能为空");
         }
         if (!StringUtils.hasText(request.modelName())) {
-            throw new BusinessException(400, "模型名称不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "模型名称不能为空");
         }
         if (!StringUtils.hasText(request.apiBaseUrl())) {
-            throw new BusinessException(400, "API Base URL 不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "API Base URL 不能为空");
         }
         entity.setProvider(request.provider());
         entity.setApiStyle(StringUtils.hasText(request.apiStyle()) ? request.apiStyle() : "RESPONSES");
@@ -378,7 +386,7 @@ public class ModelConfigService {
 
     private ResolvedModelConfig fromProperties() {
         if (!StringUtils.hasText(aiProperties.getApiKey())) {
-            throw new BusinessException(400, "未配置 AI API Key，请设置 APP_AI_API_KEY");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "未配置 AI API Key，请设置 APP_AI_API_KEY");
         }
         return new ResolvedModelConfig(
                 null,
@@ -429,82 +437,4 @@ public class ModelConfigService {
      * @date 2026-06-29
      */
 
-    public record ResolvedModelConfig(
-            Long id,
-            String provider,
-            String apiStyle,
-            String baseUrl,
-            String model,
-            String apiKey,
-            Integer maxTokens,
-            Double temperature,
-            Integer timeoutSeconds
-    ) {
-    }
-    /**
-     * SaveModelConfigRequest请求对象，负责承载接口入参。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record SaveModelConfigRequest(
-            String provider,
-            String apiStyle,
-            String modelName,
-            String apiBaseUrl,
-            String apiKey,
-            Integer maxTokens,
-            Double temperature,
-            Integer timeoutSeconds,
-            Boolean defaultModel,
-            Integer status
-    ) {
-    }
-    /**
-     * ModelConfigSummary数据传输对象，负责承载不可变数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record ModelConfigSummary(
-            Long id,
-            String provider,
-            String apiStyle,
-            String modelName,
-            String apiBaseUrl,
-            Integer maxTokens,
-            Double temperature,
-            Integer timeoutSeconds,
-            Boolean defaultModel,
-            Boolean enabled,
-            Boolean hasApiKey,
-            java.time.LocalDateTime createdAt,
-            java.time.LocalDateTime updatedAt
-    ) {
-    }
-    /**
-     * ModelConfigDetail数据传输对象，负责承载不可变数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record ModelConfigDetail(
-            Long id,
-            String provider,
-            String apiStyle,
-            String modelName,
-            String apiBaseUrl,
-            Integer maxTokens,
-            Double temperature,
-            Integer timeoutSeconds,
-            Boolean defaultModel,
-            Boolean enabled,
-            Boolean hasApiKey,
-            java.time.LocalDateTime createdAt,
-            java.time.LocalDateTime updatedAt
-    ) {
-    }
 }

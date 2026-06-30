@@ -6,17 +6,18 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.devopsai.ai.AiDiagnosisService;
 import com.example.devopsai.common.BusinessException;
+import com.example.devopsai.common.ErrorCode;
 import com.example.devopsai.common.PageResponse;
-import com.example.devopsai.diagnosis.DiagnosisController.AnalyzeRequest;
-import com.example.devopsai.diagnosis.DiagnosisController.AnalyzeResponse;
-import com.example.devopsai.diagnosis.DiagnosisController.CommandSuggestion;
-import com.example.devopsai.diagnosis.DiagnosisController.FollowUpRequest;
-import com.example.devopsai.diagnosis.DiagnosisController.MessageItem;
-import com.example.devopsai.diagnosis.DiagnosisController.ReanalyzeRequest;
-import com.example.devopsai.diagnosis.DiagnosisController.ResultItem;
-import com.example.devopsai.diagnosis.DiagnosisController.SessionDetail;
-import com.example.devopsai.diagnosis.DiagnosisController.SessionQuery;
-import com.example.devopsai.diagnosis.DiagnosisController.SessionSummary;
+import com.example.devopsai.diagnosis.dto.AnalyzeRequest;
+import com.example.devopsai.diagnosis.dto.FollowUpRequest;
+import com.example.devopsai.diagnosis.dto.ReanalyzeRequest;
+import com.example.devopsai.diagnosis.dto.SessionQuery;
+import com.example.devopsai.diagnosis.vo.AnalyzeResponse;
+import com.example.devopsai.diagnosis.vo.CommandSuggestion;
+import com.example.devopsai.diagnosis.vo.MessageItem;
+import com.example.devopsai.diagnosis.vo.ResultItem;
+import com.example.devopsai.diagnosis.vo.SessionDetail;
+import com.example.devopsai.diagnosis.vo.SessionSummary;
 import com.example.devopsai.diagnosis.entity.DiagnosisMessage;
 import com.example.devopsai.diagnosis.entity.DiagnosisResult;
 import com.example.devopsai.diagnosis.entity.DiagnosisSession;
@@ -298,9 +299,12 @@ public class DiagnosisService {
         result.setPromptVersion(aiResult.promptVersion());
         result.setCreatedBy(userId);
         resultMapper.insert(result);
-        log.info("diagnosis_analysis_saved sessionId={} resultId={} userId={} riskLevel={} modelConfigId={} promptTemplateId={} promptVersion={}",
+        log.info(
+                "diagnosis_analysis_saved sessionId={} resultId={} userId={} " +
+                        "riskLevel={} modelConfigId={} promptTemplateId={} promptVersion={}",
                 session.getId(), result.getId(), userId, response.riskLevel(),
-                aiResult.modelConfigId(), aiResult.promptTemplateId(), aiResult.promptVersion());
+                aiResult.modelConfigId(), aiResult.promptTemplateId(), aiResult.promptVersion()
+        );
 
         return new AnalyzeResponse(
                 response.sessionId(),
@@ -379,7 +383,12 @@ public class DiagnosisService {
                         .eq(DiagnosisMessage::getSessionId, id)
                         .orderByAsc(DiagnosisMessage::getCreatedAt))
                 .stream()
-                .map(message -> new MessageItem(message.getId(), message.getRole(), message.getContent(), message.getCreatedAt()))
+                .map(message -> new MessageItem(
+                        message.getId(),
+                        message.getRole(),
+                        message.getContent(),
+                        message.getCreatedAt()
+                ))
                 .toList();
         var latest = selectLatestResult(id);
         var result = latest == null ? null : new ResultItem(
@@ -436,7 +445,7 @@ public class DiagnosisService {
                 .eq(DiagnosisSession::getUserId, userId)
                 .eq(DiagnosisSession::getDeleted, 0));
         if (updated == 0) {
-            throw new BusinessException(404, "排障会话不存在");
+            throw new BusinessException(ErrorCode.DIAGNOSIS_SESSION_NOT_FOUND);
         }
         log.info("diagnosis_session_deleted sessionId={} userId={}", id, userId);
     }
@@ -454,7 +463,7 @@ public class DiagnosisService {
                 .eq(DiagnosisSession::getDeleted, 0)
                 .last("LIMIT 1"));
         if (session == null) {
-            throw new BusinessException(404, "排障会话不存在");
+            throw new BusinessException(ErrorCode.DIAGNOSIS_SESSION_NOT_FOUND);
         }
         return session;
     }
@@ -478,7 +487,7 @@ public class DiagnosisService {
                 .orderByAsc(DiagnosisMessage::getCreatedAt)
                 .last("LIMIT 1"));
         if (message == null || !StringUtils.hasText(message.getContent())) {
-            throw new BusinessException(400, "历史会话缺少原始输入，无法再次分析");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "历史会话缺少原始输入，无法再次分析");
         }
         return message.getContent();
     }
@@ -546,7 +555,12 @@ public class DiagnosisService {
         var commands = List.of(
                 new CommandSuggestion("systemctl status docker", "查看 Docker 服务状态", "LOW", ""),
                 new CommandSuggestion("groups", "查看当前用户所属用户组", "LOW", ""),
-                new CommandSuggestion("sudo usermod -aG docker $USER", "将当前用户加入 docker 用户组", "MEDIUM", "docker 用户组权限较高，请确认用户可信。")
+                new CommandSuggestion(
+                        "sudo usermod -aG docker $USER",
+                        "将当前用户加入 docker 用户组",
+                        "MEDIUM",
+                        "docker 用户组权限较高，请确认用户可信。"
+                )
         );
         return new AnalyzeResponse(
                 sessionId,
@@ -661,7 +675,7 @@ public class DiagnosisService {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException exception) {
-            throw new BusinessException(500, "分析结果序列化失败");
+            throw new BusinessException(ErrorCode.COMMON_INTERNAL_ERROR, "分析结果序列化失败");
         }
     }
 }

@@ -5,13 +5,18 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.devopsai.casebase.entity.CaseItem;
 import com.example.devopsai.casebase.mapper.CaseMapper;
 import com.example.devopsai.common.BusinessException;
+import com.example.devopsai.common.ErrorCode;
 import com.example.devopsai.common.PageResponse;
-import com.example.devopsai.diagnosis.DiagnosisController.AnalyzeRequest;
+import com.example.devopsai.diagnosis.dto.AnalyzeRequest;
+import com.example.devopsai.knowledge.dto.KnowledgeQuery;
+import com.example.devopsai.knowledge.dto.SaveKnowledgeFromCaseRequest;
+import com.example.devopsai.knowledge.dto.SaveKnowledgeRequest;
 import com.example.devopsai.knowledge.entity.KnowledgeItem;
 import com.example.devopsai.knowledge.mapper.KnowledgeMapper;
+import com.example.devopsai.knowledge.vo.KnowledgeDetail;
+import com.example.devopsai.knowledge.vo.KnowledgeSummary;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -172,10 +177,10 @@ public class KnowledgeService {
                 .eq(CaseItem::getDeleted, 0)
                 .last("LIMIT 1"));
         if (caseItem == null) {
-            throw new BusinessException(404, "案例不存在");
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "案例不存在");
         }
         if (!"PUBLISHED".equals(caseItem.getStatus())) {
-            throw new BusinessException(400, "只有已发布案例才能转入知识库");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "只有已发布案例才能转入知识库");
         }
 
         var entity = new KnowledgeItem();
@@ -197,17 +202,21 @@ public class KnowledgeService {
 
     private void fill(KnowledgeItem entity, SaveKnowledgeRequest request) {
         if (!StringUtils.hasText(request.title())) {
-            throw new BusinessException(400, "知识标题不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "知识标题不能为空");
         }
         if (!StringUtils.hasText(request.content())) {
-            throw new BusinessException(400, "知识正文不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "知识正文不能为空");
         }
         entity.setTitle(request.title());
         entity.setCategory(request.category());
         entity.setTags(toJson(request.tags()));
         entity.setContent(request.content());
-        entity.setContentType(StringUtils.hasText(request.contentType()) ? request.contentType() : CONTENT_TYPE_MARKDOWN);
-        entity.setSourceType(StringUtils.hasText(request.sourceType()) ? request.sourceType() : SOURCE_TYPE_MANUAL);
+        entity.setContentType(StringUtils.hasText(request.contentType())
+                ? request.contentType()
+                : CONTENT_TYPE_MARKDOWN);
+        entity.setSourceType(StringUtils.hasText(request.sourceType())
+                ? request.sourceType()
+                : SOURCE_TYPE_MANUAL);
         entity.setSourceRef(request.sourceRef());
         entity.setVersion(StringUtils.hasText(request.version()) ? request.version() : DEFAULT_VERSION);
     }
@@ -218,14 +227,14 @@ public class KnowledgeService {
                 .eq(KnowledgeItem::getDeleted, 0)
                 .last("LIMIT 1"));
         if (entity == null) {
-            throw new BusinessException(404, "知识不存在");
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "知识不存在");
         }
         return entity;
     }
 
     private void validateStatus(Integer status) {
         if (status == null || (status != 0 && status != 1)) {
-            throw new BusinessException(400, "知识状态参数错误");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "知识状态参数错误");
         }
     }
 
@@ -358,7 +367,7 @@ public class KnowledgeService {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException exception) {
-            throw new BusinessException(400, "JSON 数据格式错误");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "JSON 数据格式错误");
         }
     }
 
@@ -374,74 +383,4 @@ public class KnowledgeService {
         }
     }
 
-    public record KnowledgeQuery(
-            String keyword,
-            String category,
-            String tag,
-            Integer status,
-            long pageNum,
-            long pageSize
-    ) {
-    }
-
-    public record SaveKnowledgeRequest(
-            @NotBlank String title,
-            String category,
-            List<String> tags,
-            @NotBlank String content,
-            String contentType,
-            String sourceType,
-            String sourceRef,
-            String version,
-            Integer status
-    ) {
-    }
-
-    public record SaveKnowledgeFromCaseRequest(
-            String title,
-            String category,
-            List<String> tags,
-            String content,
-            String version,
-            Integer status
-    ) {
-    }
-
-    public record UpdateKnowledgeStatusRequest(Integer status) {
-    }
-
-    public record KnowledgeSummary(
-            Long id,
-            String title,
-            String category,
-            List<String> tags,
-            String contentType,
-            String sourceType,
-            String sourceRef,
-            String version,
-            Boolean enabled,
-            Long createdBy,
-            Long updatedBy,
-            LocalDateTime createdAt,
-            LocalDateTime updatedAt
-    ) {
-    }
-
-    public record KnowledgeDetail(
-            Long id,
-            String title,
-            String category,
-            List<String> tags,
-            String content,
-            String contentType,
-            String sourceType,
-            String sourceRef,
-            String version,
-            Boolean enabled,
-            Long createdBy,
-            Long updatedBy,
-            LocalDateTime createdAt,
-            LocalDateTime updatedAt
-    ) {
-    }
 }

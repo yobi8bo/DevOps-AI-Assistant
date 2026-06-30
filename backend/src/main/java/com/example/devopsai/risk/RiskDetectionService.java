@@ -1,9 +1,10 @@
 package com.example.devopsai.risk;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.example.devopsai.diagnosis.DiagnosisController.CommandSuggestion;
+import com.example.devopsai.diagnosis.vo.CommandSuggestion;
 import com.example.devopsai.risk.entity.RiskRule;
 import com.example.devopsai.risk.mapper.RiskRuleMapper;
+import com.example.devopsai.risk.vo.DetectionResult;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -63,7 +64,12 @@ public class RiskDetectionService {
             if (StringUtils.hasText(commandWarning)) {
                 warnings.add(commandWarning);
             }
-            enrichedCommands.add(new CommandSuggestion(command.command(), command.description(), commandRisk, commandWarning));
+            enrichedCommands.add(new CommandSuggestion(
+                    command.command(),
+                    command.description(),
+                    commandRisk,
+                    commandWarning
+            ));
         }
 
         for (var text : safeList(rawTexts)) {
@@ -139,18 +145,5 @@ public class RiskDetectionService {
             return original;
         }
         return original + " " + detected;
-    }
-    /**
-     * DetectionResult结果实体，负责保存诊断结果数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record DetectionResult(
-            List<CommandSuggestion> commands,
-            String riskLevel,
-            List<String> warnings
-    ) {
     }
 }

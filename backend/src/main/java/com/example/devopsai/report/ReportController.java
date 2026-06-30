@@ -2,8 +2,8 @@ package com.example.devopsai.report;
 
 import com.example.devopsai.auth.AppUserPrincipal;
 import com.example.devopsai.common.ApiResponse;
-import com.example.devopsai.report.ReportService.ReportDetail;
-import com.example.devopsai.report.ReportService.ReportSummary;
+import com.example.devopsai.report.vo.ReportDetail;
+import com.example.devopsai.report.vo.ReportSummary;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;

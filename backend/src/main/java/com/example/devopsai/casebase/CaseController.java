@@ -1,12 +1,12 @@
 package com.example.devopsai.casebase;
 
 import com.example.devopsai.auth.AppUserPrincipal;
-import com.example.devopsai.casebase.CaseService.CaseDetail;
-import com.example.devopsai.casebase.CaseService.CaseQuery;
-import com.example.devopsai.casebase.CaseService.CaseSummary;
-import com.example.devopsai.casebase.CaseService.SaveCaseFromSessionRequest;
-import com.example.devopsai.casebase.CaseService.SaveCaseRequest;
-import com.example.devopsai.casebase.CaseService.UpdateCaseStatusRequest;
+import com.example.devopsai.casebase.dto.CaseQuery;
+import com.example.devopsai.casebase.dto.SaveCaseFromSessionRequest;
+import com.example.devopsai.casebase.dto.SaveCaseRequest;
+import com.example.devopsai.casebase.dto.UpdateCaseStatusRequest;
+import com.example.devopsai.casebase.vo.CaseDetail;
+import com.example.devopsai.casebase.vo.CaseSummary;
 import com.example.devopsai.common.ApiResponse;
 import com.example.devopsai.common.PageResponse;
 import jakarta.validation.Valid;

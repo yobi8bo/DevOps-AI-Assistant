@@ -4,10 +4,15 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.devopsai.common.BusinessException;
+import com.example.devopsai.common.ErrorCode;
 import com.example.devopsai.common.PageResponse;
-import com.example.devopsai.diagnosis.DiagnosisController.AnalyzeRequest;
+import com.example.devopsai.diagnosis.dto.AnalyzeRequest;
+import com.example.devopsai.prompt.dto.RenderedPrompt;
+import com.example.devopsai.prompt.dto.SavePromptTemplateRequest;
 import com.example.devopsai.prompt.entity.PromptTemplate;
 import com.example.devopsai.prompt.mapper.PromptTemplateMapper;
+import com.example.devopsai.prompt.vo.PromptTemplateDetail;
+import com.example.devopsai.prompt.vo.PromptTemplateSummary;
 import java.time.LocalDateTime;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -45,7 +50,13 @@ public class PromptTemplateService {
      * @return 处理结果。
      */
 
-    public PageResponse<PromptTemplateSummary> list(String keyword, String category, Integer status, long pageNum, long pageSize) {
+    public PageResponse<PromptTemplateSummary> list(
+            String keyword,
+            String category,
+            Integer status,
+            long pageNum,
+            long pageSize
+    ) {
         var wrapper = new LambdaQueryWrapper<PromptTemplate>()
                 .eq(PromptTemplate::getDeleted, 0)
                 .orderByDesc(PromptTemplate::getIsDefault)
@@ -130,7 +141,7 @@ public class PromptTemplateService {
     @Transactional
     public void updateStatus(Long id, Integer status, Long userId) {
         if (status == null || (status != 0 && status != 1)) {
-            throw new BusinessException(400, "状态参数错误");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "状态参数错误");
         }
         var entity = selectExisting(id);
         entity.setStatus(status);
@@ -147,7 +158,7 @@ public class PromptTemplateService {
     public void setDefault(Long id, Long userId) {
         var entity = selectExisting(id);
         if (!Integer.valueOf(1).equals(entity.getStatus())) {
-            throw new BusinessException(400, "停用的模板不能设为默认");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "停用的模板不能设为默认");
         }
         clearDefaultForCategory(entity.getCategory(), id);
         entity.setIsDefault(1);
@@ -287,7 +298,7 @@ public class PromptTemplateService {
                 .eq(PromptTemplate::getDeleted, 0)
                 .last("LIMIT 1"));
         if (entity == null) {
-            throw new BusinessException(404, "Prompt 模板不存在");
+            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "Prompt 模板不存在");
         }
         return entity;
     }
@@ -299,10 +310,10 @@ public class PromptTemplateService {
 
     private void fill(PromptTemplate entity, SavePromptTemplateRequest request) {
         if (!StringUtils.hasText(request.name())) {
-            throw new BusinessException(400, "模板名称不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "模板名称不能为空");
         }
         if (!StringUtils.hasText(request.content())) {
-            throw new BusinessException(400, "模板内容不能为空");
+            throw new BusinessException(ErrorCode.COMMON_PARAM_INVALID, "模板内容不能为空");
         }
         entity.setName(request.name());
         entity.setCategory(request.category());
@@ -386,59 +397,4 @@ public class PromptTemplateService {
      * @date 2026-06-29
      */
 
-    public record RenderedPrompt(Long templateId, String version, String content) {
-    }
-    /**
-     * SavePromptTemplateRequest请求对象，负责承载接口入参。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record SavePromptTemplateRequest(
-            String name,
-            String category,
-            String content,
-            String version,
-            Boolean defaultTemplate,
-            Integer status
-    ) {
-    }
-    /**
-     * PromptTemplateSummary数据传输对象，负责承载不可变数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record PromptTemplateSummary(
-            Long id,
-            String name,
-            String category,
-            String version,
-            Boolean defaultTemplate,
-            Boolean enabled,
-            java.time.LocalDateTime createdAt,
-            java.time.LocalDateTime updatedAt
-    ) {
-    }
-    /**
-     * PromptTemplateDetail数据传输对象，负责承载不可变数据。
-     * 
-     * @author zhang
-     * @date 2026-06-29
-     */
-
-    public record PromptTemplateDetail(
-            Long id,
-            String name,
-            String category,
-            String content,
-            String version,
-            Boolean defaultTemplate,
-            Boolean enabled,
-            java.time.LocalDateTime createdAt,
-            java.time.LocalDateTime updatedAt
-    ) {
-    }
 }

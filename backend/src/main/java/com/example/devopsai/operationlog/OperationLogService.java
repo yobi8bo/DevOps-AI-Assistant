@@ -4,8 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.devopsai.auth.AppUserPrincipal;
 import com.example.devopsai.common.PageResponse;
+import com.example.devopsai.common.security.SensitiveDataMasker;
 import com.example.devopsai.operationlog.entity.SysOperationLog;
 import com.example.devopsai.operationlog.mapper.SysOperationLogMapper;
+import com.example.devopsai.operationlog.dto.OperationLogQuery;
+import com.example.devopsai.operationlog.vo.OperationLogSummary;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -64,7 +67,7 @@ public class OperationLogService {
         log.setIpAddress(limit(resolveClientIp(request), 64));
         log.setUserAgent(limit(request.getHeader("User-Agent"), 512));
         log.setSuccess(status < 400 && error == null ? 1 : 0);
-        log.setErrorMessage(limit(error == null ? null : error.getMessage(), 2000));
+        log.setErrorMessage(limit(error == null ? null : SensitiveDataMasker.maskInline(error.getMessage()), 2000));
         log.setCreatedAt(LocalDateTime.now());
         operationLogMapper.insert(log);
     }
@@ -158,30 +161,4 @@ public class OperationLogService {
         );
     }
 
-    public record OperationLogQuery(
-            String keyword,
-            String module,
-            String action,
-            Boolean success,
-            long pageNum,
-            long pageSize
-    ) {
-    }
-
-    public record OperationLogSummary(
-            Long id,
-            Long userId,
-            String username,
-            String module,
-            String action,
-            Long targetId,
-            String requestMethod,
-            String requestUri,
-            String ipAddress,
-            String userAgent,
-            Boolean success,
-            String errorMessage,
-            LocalDateTime createdAt
-    ) {
-    }
 }

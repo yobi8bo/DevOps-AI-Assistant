@@ -1,7 +1,7 @@
 package com.example.devopsai.role;
 
 import com.example.devopsai.common.ApiResponse;
-import com.example.devopsai.role.RoleService.PermissionSummary;
+import com.example.devopsai.role.vo.PermissionSummary;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
