@@ -130,6 +130,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { message, type TablePaginationConfig } from 'ant-design-vue';
 import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue';
+import { defaultCategoryOptions, fetchFaultCategoryOptions } from '@/api/fault-category';
 import {
   createPromptTemplate,
   deletePromptTemplate,
@@ -193,16 +194,7 @@ const form = reactive({
   enabled: true,
 });
 
-const categoryOptions = [
-  'Linux',
-  'Docker',
-  'Kubernetes',
-  'Jenkins',
-  'Nginx',
-  'MySQL',
-  'Redis',
-  'Spring Boot',
-].map((value) => ({ label: value, value }));
+const categoryOptions = ref(defaultCategoryOptions);
 
 const statusOptions = [
   { label: '启用', value: 1 },
@@ -240,7 +232,18 @@ const pagination = computed<TablePaginationConfig>(() => ({
   showTotal: (count) => `共 ${count} 条`,
 }));
 
-onMounted(loadTemplates);
+onMounted(async () => {
+  await Promise.all([loadTemplates(), loadCategoryOptions()]);
+});
+
+async function loadCategoryOptions() {
+  try {
+    const options = await fetchFaultCategoryOptions();
+    categoryOptions.value = options.map((item) => ({ label: item.categoryName, value: item.categoryName }));
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '加载故障分类失败');
+  }
+}
 
 async function loadTemplates() {
   loading.value = true;

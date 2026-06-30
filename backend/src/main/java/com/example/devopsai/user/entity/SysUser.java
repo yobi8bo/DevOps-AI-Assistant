@@ -45,6 +45,22 @@ public class SysUser {
      */
     private LocalDateTime lastLoginAt;
     /**
+     * 创建人ID。
+     */
+    private Long createdBy;
+    /**
+     * 更新人ID。
+     */
+    private Long updatedBy;
+    /**
+     * 创建时间。
+     */
+    private LocalDateTime createdAt;
+    /**
+     * 更新时间。
+     */
+    private LocalDateTime updatedAt;
+    /**
      * 逻辑删除标记。
      */
     private Integer deleted;
@@ -177,6 +193,54 @@ public class SysUser {
         this.lastLoginAt = lastLoginAt;
     }
     /**
+     * 获取创建人ID。
+     * @return 处理结果。
+     */
+
+    public Long getCreatedBy() { return createdBy; }
+    /**
+     * 设置创建人ID。
+     * @param createdBy createdBy参数。
+     */
+
+    public void setCreatedBy(Long createdBy) { this.createdBy = createdBy; }
+    /**
+     * 获取更新人ID。
+     * @return 处理结果。
+     */
+
+    public Long getUpdatedBy() { return updatedBy; }
+    /**
+     * 设置更新人ID。
+     * @param updatedBy updatedBy参数。
+     */
+
+    public void setUpdatedBy(Long updatedBy) { this.updatedBy = updatedBy; }
+    /**
+     * 获取创建时间。
+     * @return 处理结果。
+     */
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    /**
+     * 设置创建时间。
+     * @param createdAt createdAt参数。
+     */
+
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    /**
+     * 获取更新时间。
+     * @return 处理结果。
+     */
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    /**
+     * 设置更新时间。
+     * @param updatedAt updatedAt参数。
+     */
+
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    /**
      * 获取逻辑删除标记。
      * @return 处理结果。
      */
@@ -193,4 +257,3 @@ public class SysUser {
         this.deleted = deleted;
     }
 }
-

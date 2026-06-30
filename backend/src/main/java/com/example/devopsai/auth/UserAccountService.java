@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.devopsai.common.BusinessException;
 import com.example.devopsai.user.entity.SysUser;
 import com.example.devopsai.user.mapper.SysUserMapper;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 /**
  * UserAccountService服务类，负责封装对应模块的业务逻辑。
  * 
@@ -55,6 +57,29 @@ public class UserAccountService implements UserDetailsService {
 
     public void recordLogin(Long userId) {
         userMapper.updateLastLoginAt(userId);
+    }
+
+    @Transactional
+    public void changePassword(Long userId, String oldPassword, String newPassword, PasswordEncoder passwordEncoder) {
+        var user = userMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getId, userId)
+                .eq(SysUser::getDeleted, 0)
+                .last("LIMIT 1"));
+        if (user == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
+        if (!Integer.valueOf(1).equals(user.getStatus())) {
+            throw new BusinessException(403, "用户已被禁用");
+        }
+        if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
+            throw new BusinessException(400, "旧密码不正确");
+        }
+        if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+            throw new BusinessException(400, "新密码不能与旧密码相同");
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setUpdatedBy(userId);
+        userMapper.updateById(user);
     }
     /**
      * 按用户名加载Spring Security用户。

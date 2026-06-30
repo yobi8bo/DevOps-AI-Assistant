@@ -1,12 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import AiCallLogView from '@/views/ai-call-log/AiCallLogView.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import CasebaseView from '@/views/casebase/CasebaseView.vue';
 import DiagnosisView from '@/views/diagnosis/DiagnosisView.vue';
+import FaultCategoryView from '@/views/category/FaultCategoryView.vue';
 import DashboardView from '@/views/dashboard/DashboardView.vue';
 import HistoryView from '@/views/history/HistoryView.vue';
+import KnowledgeView from '@/views/knowledge/KnowledgeView.vue';
 import LoginView from '@/views/login/LoginView.vue';
 import ModelConfigView from '@/views/model-config/ModelConfigView.vue';
+import OperationLogView from '@/views/operation-log/OperationLogView.vue';
 import PromptTemplateView from '@/views/prompt-template/PromptTemplateView.vue';
+import RolePermissionView from '@/views/role/RolePermissionView.vue';
+import UserManagementView from '@/views/user/UserManagementView.vue';
 import { useUserStore } from '@/stores/user';
 
 const router = createRouter({
@@ -38,6 +44,16 @@ const router = createRouter({
           component: HistoryView,
         },
         {
+          path: 'cases',
+          name: 'cases',
+          component: CasebaseView,
+        },
+        {
+          path: 'knowledge',
+          name: 'knowledge',
+          component: KnowledgeView,
+        },
+        {
           path: 'model-configs',
           name: 'model-configs',
           component: ModelConfigView,
@@ -51,6 +67,26 @@ const router = createRouter({
           path: 'ai-call-logs',
           name: 'ai-call-logs',
           component: AiCallLogView,
+        },
+        {
+          path: 'users',
+          name: 'users',
+          component: UserManagementView,
+        },
+        {
+          path: 'roles',
+          name: 'roles',
+          component: RolePermissionView,
+        },
+        {
+          path: 'fault-categories',
+          name: 'fault-categories',
+          component: FaultCategoryView,
+        },
+        {
+          path: 'operation-logs',
+          name: 'operation-logs',
+          component: OperationLogView,
         },
       ],
     },

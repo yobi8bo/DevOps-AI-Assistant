@@ -126,6 +126,14 @@ export async function continueDiagnosisSession(id: number, payload: FollowUpRequ
   return response.data.data;
 }
 
+export async function reanalyzeDiagnosisSession(id: number, modelConfigId?: number): Promise<AnalyzeResponse> {
+  const response = await http.post<ApiResponse<AnalyzeResponse>>(
+    `/diagnosis/sessions/${id}/reanalyze`,
+    modelConfigId ? { modelConfigId } : {},
+  );
+  return response.data.data;
+}
+
 export async function updateDiagnosisSessionStatus(id: number, status: string): Promise<boolean> {
   const response = await http.patch<ApiResponse<boolean>>(`/diagnosis/sessions/${id}/status`, { status });
   return response.data.data;

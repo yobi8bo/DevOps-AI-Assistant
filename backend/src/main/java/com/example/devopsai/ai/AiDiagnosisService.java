@@ -4,6 +4,7 @@ import com.example.devopsai.common.BusinessException;
 import com.example.devopsai.diagnosis.DiagnosisController.AnalyzeRequest;
 import com.example.devopsai.diagnosis.DiagnosisController.AnalyzeResponse;
 import com.example.devopsai.diagnosis.DiagnosisController.CommandSuggestion;
+import com.example.devopsai.knowledge.KnowledgeService;
 import com.example.devopsai.model.ModelConfigService;
 import com.example.devopsai.prompt.PromptTemplateService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -32,6 +33,10 @@ public class AiDiagnosisService {
      */
     private final PromptTemplateService promptTemplateService;
     /**
+     * 知识库服务。
+     */
+    private final KnowledgeService knowledgeService;
+    /**
      * AI客户端。
      */
     private final AiClient aiClient;
@@ -55,12 +60,14 @@ public class AiDiagnosisService {
     public AiDiagnosisService(
             ModelConfigService modelConfigService,
             PromptTemplateService promptTemplateService,
+            KnowledgeService knowledgeService,
             AiClient aiClient,
             AiCallLogService aiCallLogService,
             ObjectMapper objectMapper
     ) {
         this.modelConfigService = modelConfigService;
         this.promptTemplateService = promptTemplateService;
+        this.knowledgeService = knowledgeService;
         this.aiClient = aiClient;
         this.aiCallLogService = aiCallLogService;
         this.objectMapper = objectMapper;
@@ -76,10 +83,11 @@ public class AiDiagnosisService {
     public DiagnosisAiResult analyze(AnalyzeRequest request, Long sessionId, Long userId) {
         var modelConfig = modelConfigService.resolve(request.modelConfigId());
         var renderedPrompt = promptTemplateService.renderForDiagnosis(request);
+        var userPrompt = appendKnowledgeContext(renderedPrompt.content(), knowledgeService.buildRelevantKnowledgeContext(request));
         var requestId = UUID.randomUUID().toString();
         var startedAt = Instant.now();
         try {
-            var aiResponse = aiClient.createResponse(modelConfig, systemPrompt(), renderedPrompt.content());
+            var aiResponse = aiClient.createResponse(modelConfig, systemPrompt(), userPrompt);
             var latencyMs = Duration.between(startedAt, Instant.now()).toMillis();
             aiCallLogService.logSuccess(requestId, userId, sessionId, modelConfig, aiResponse, latencyMs);
             return new DiagnosisAiResult(
@@ -128,6 +136,20 @@ public class AiDiagnosisService {
         } catch (JsonProcessingException exception) {
             throw new BusinessException(502, "AI 返回内容不是合法诊断 JSON");
         }
+    }
+
+    private String appendKnowledgeContext(String prompt, String knowledgeContext) {
+        if (knowledgeContext == null || knowledgeContext.isBlank()) {
+            return prompt;
+        }
+        return prompt + """
+
+
+                以下是系统检索到的企业内部知识库片段。请只把它们作为辅助参考；如果与用户输入冲突，以用户输入为准；不要在结果中暴露知识库内部来源字段。
+
+                相关知识库：
+                %s
+                """.formatted(knowledgeContext);
     }
     /**
      * 执行systemPrompt处理逻辑。

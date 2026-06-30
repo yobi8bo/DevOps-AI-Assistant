@@ -96,6 +96,18 @@ public class AuthController {
     public ApiResponse<Boolean> logout() {
         return ApiResponse.success("退出成功", true);
     }
+
+    @PostMapping("/change-password")
+    public ApiResponse<Boolean> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            @AuthenticationPrincipal AppUserPrincipal principal
+    ) {
+        if (principal == null) {
+            throw new BusinessException(401, "未登录或登录已过期");
+        }
+        userAccountService.changePassword(principal.getId(), request.oldPassword(), request.newPassword(), passwordEncoder);
+        return ApiResponse.success("密码已修改，请重新登录", true);
+    }
     /**
      * 转换为前端用户信息。
      * @param principal principal参数。
@@ -122,6 +134,12 @@ public class AuthController {
     public record LoginRequest(
             @NotBlank String username,
             @NotBlank String password
+    ) {
+    }
+
+    public record ChangePasswordRequest(
+            @NotBlank String oldPassword,
+            @NotBlank String newPassword
     ) {
     }
     /**

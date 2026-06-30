@@ -141,6 +141,15 @@ public class DiagnosisController {
     ) {
         return ApiResponse.success("分析成功", diagnosisService.continueAnalyze(id, request, principal.getId()));
     }
+
+    @PostMapping("/sessions/{id}/reanalyze")
+    public ApiResponse<AnalyzeResponse> reanalyze(
+            @PathVariable Long id,
+            @RequestBody(required = false) ReanalyzeRequest request,
+            @AuthenticationPrincipal AppUserPrincipal principal
+    ) {
+        return ApiResponse.success("分析成功", diagnosisService.reanalyze(id, request, principal.getId()));
+    }
     /**
      * AnalyzeRequest请求对象，负责承载接口入参。
      * 
@@ -172,6 +181,11 @@ public class DiagnosisController {
      */
     public record FollowUpRequest(
             @NotBlank String content,
+            Long modelConfigId
+    ) {
+    }
+
+    public record ReanalyzeRequest(
             Long modelConfigId
     ) {
     }

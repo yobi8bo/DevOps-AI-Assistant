@@ -12,6 +12,7 @@ import com.example.devopsai.diagnosis.DiagnosisController.AnalyzeResponse;
 import com.example.devopsai.diagnosis.DiagnosisController.CommandSuggestion;
 import com.example.devopsai.diagnosis.DiagnosisController.FollowUpRequest;
 import com.example.devopsai.diagnosis.DiagnosisController.MessageItem;
+import com.example.devopsai.diagnosis.DiagnosisController.ReanalyzeRequest;
 import com.example.devopsai.diagnosis.DiagnosisController.ResultItem;
 import com.example.devopsai.diagnosis.DiagnosisController.SessionDetail;
 import com.example.devopsai.diagnosis.DiagnosisController.SessionQuery;
@@ -184,6 +185,63 @@ public class DiagnosisService {
         log.info("diagnosis_follow_up_created sessionId={} userId={} messageId={}",
                 session.getId(), userId, userMessage.getId());
         return saveAiAnalysis(session, followUpAnalyzeRequest, userId);
+    }
+
+    /**
+     * 基于历史会话复制输入并重新发起一次新的分析。
+     * @param id 历史会话ID。
+     * @param request 再次分析请求。
+     * @param userId 用户ID。
+     * @return 新会话的分析结果。
+     */
+    @Transactional
+    public AnalyzeResponse reanalyze(Long id, ReanalyzeRequest request, Long userId) {
+        var source = selectOwnedSession(id, userId);
+        var originalContent = selectFirstUserMessageContent(id);
+        var now = LocalDateTime.now();
+
+        var session = new DiagnosisSession();
+        session.setTitle(source.getTitle());
+        session.setCategory(source.getCategory());
+        session.setEnvironment(source.getEnvironment());
+        session.setOsInfo(source.getOsInfo());
+        session.setMiddleware(source.getMiddleware());
+        session.setServiceType(source.getServiceType());
+        session.setIsProduction(source.getIsProduction());
+        session.setUrgencyLevel(source.getUrgencyLevel());
+        session.setStatus(DEFAULT_STATUS);
+        session.setUserId(userId);
+        session.setLastMessageAt(now);
+        session.setCreatedBy(userId);
+        session.setUpdatedBy(userId);
+        sessionMapper.insert(session);
+
+        var analyzeRequest = new AnalyzeRequest(
+                source.getTitle(),
+                source.getCategory(),
+                source.getEnvironment(),
+                source.getOsInfo(),
+                source.getMiddleware(),
+                source.getServiceType(),
+                Integer.valueOf(1).equals(source.getIsProduction()),
+                source.getUrgencyLevel(),
+                buildReanalyzeDescription(originalContent),
+                null,
+                null,
+                request == null ? null : request.modelConfigId()
+        );
+
+        var userMessage = new DiagnosisMessage();
+        userMessage.setSessionId(session.getId());
+        userMessage.setRole("user");
+        userMessage.setContent(originalContent);
+        userMessage.setContentSanitized(originalContent);
+        userMessage.setCreatedBy(userId);
+        messageMapper.insert(userMessage);
+
+        log.info("diagnosis_reanalyze_created sourceSessionId={} newSessionId={} userId={}",
+                source.getId(), session.getId(), userId);
+        return saveAiAnalysis(session, analyzeRequest, userId);
     }
 
     /**
@@ -413,6 +471,18 @@ public class DiagnosisService {
                 .last("LIMIT 1"));
     }
 
+    private String selectFirstUserMessageContent(Long sessionId) {
+        var message = messageMapper.selectOne(new LambdaQueryWrapper<DiagnosisMessage>()
+                .eq(DiagnosisMessage::getSessionId, sessionId)
+                .eq(DiagnosisMessage::getRole, "user")
+                .orderByAsc(DiagnosisMessage::getCreatedAt)
+                .last("LIMIT 1"));
+        if (message == null || !StringUtils.hasText(message.getContent())) {
+            throw new BusinessException(400, "历史会话缺少原始输入，无法再次分析");
+        }
+        return message.getContent();
+    }
+
     /**
      * 构建用于多轮追问的会话上下文。
      * @param sessionId 会话ID。
@@ -455,6 +525,15 @@ public class DiagnosisService {
                 本次补充：
                 %s
                 """.formatted(blankToDash(context), content);
+    }
+
+    private String buildReanalyzeDescription(String originalContent) {
+        return """
+                下面是一次历史排障会话的原始用户输入。请把它作为一次全新的排障请求重新分析，不要沿用历史 AI 结论。
+
+                原始输入：
+                %s
+                """.formatted(blankToDash(originalContent));
     }
     /**
      * 构建兜底诊断结果。

@@ -31,3 +31,7 @@ export async function logout(): Promise<boolean> {
   return response.data.data;
 }
 
+export async function changePassword(oldPassword: string, newPassword: string): Promise<boolean> {
+  const response = await http.post<ApiResponse<boolean>>('/auth/change-password', { oldPassword, newPassword });
+  return response.data.data;
+}

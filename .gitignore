@@ -25,3 +25,6 @@ logs/
 .env.local
 application-local.yml
 docs/
+!docs/
+docs/*
+!docs/MVP_CORE_GAP_TRACKING.md

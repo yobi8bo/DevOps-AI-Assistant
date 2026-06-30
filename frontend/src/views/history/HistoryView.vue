@@ -74,6 +74,9 @@
           <template v-else-if="column.key === 'action'">
             <a-space>
               <a-button size="small" @click="openDetail(record.id)">查看</a-button>
+              <a-button size="small" :loading="reanalyzeLoadingId === record.id" @click="reanalyze(record.id)">
+                再次分析
+              </a-button>
               <a-popconfirm title="确认删除这条排障记录？" @confirm="deleteSession(record.id)">
                 <a-button size="small" danger>删除</a-button>
               </a-popconfirm>
@@ -123,6 +126,15 @@
               <a-button type="primary" :loading="followUpLoading" @click="submitFollowUp">
                 发送追问
               </a-button>
+              <a-button :loading="saveCaseLoading" @click="saveAsCase">
+                保存案例
+              </a-button>
+              <a-button :loading="reportLoading" @click="generateReport">
+                生成复盘
+              </a-button>
+              <a-button :loading="reanalyzeLoadingId === detail.id" @click="reanalyze(detail.id)">
+                再次分析
+              </a-button>
             </div>
           </a-card>
 
@@ -140,6 +152,21 @@
         </div>
       </a-spin>
     </a-drawer>
+
+    <a-drawer
+      v-model:open="reportOpen"
+      width="min(960px, 100vw)"
+      :title="report?.title || '复盘报告'"
+      :destroy-on-close="true"
+    >
+      <a-empty v-if="!report" description="暂无报告" />
+      <template v-else>
+        <div class="report-actions">
+          <a-button type="primary" @click="copyReport">复制 Markdown</a-button>
+        </div>
+        <pre class="message-content">{{ report.content }}</pre>
+      </template>
+    </a-drawer>
   </div>
 </template>
 
@@ -147,11 +174,15 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { message, type TablePaginationConfig } from 'ant-design-vue';
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons-vue';
+import { createCaseFromSession } from '@/api/case';
+import { defaultCategoryOptions, fetchFaultCategoryOptions } from '@/api/fault-category';
+import { createReportFromSession, type ReportDetail } from '@/api/report';
 import {
   continueDiagnosisSession,
   deleteDiagnosisSession,
   fetchDiagnosisSession,
   fetchDiagnosisSessions,
+  reanalyzeDiagnosisSession,
   updateDiagnosisSessionStatus,
   type SessionDetail,
   type SessionSummary,
@@ -160,8 +191,13 @@ import {
 const loading = ref(false);
 const detailLoading = ref(false);
 const followUpLoading = ref(false);
+const saveCaseLoading = ref(false);
+const reportLoading = ref(false);
+const reanalyzeLoadingId = ref<number | null>(null);
 const detailOpen = ref(false);
+const reportOpen = ref(false);
 const detail = ref<SessionDetail | null>(null);
+const report = ref<ReportDetail | null>(null);
 const sessions = ref<SessionSummary[]>([]);
 const total = ref(0);
 const productionFilter = ref<string | undefined>();
@@ -175,16 +211,7 @@ const query = reactive({
   pageSize: 10,
 });
 
-const categoryOptions = [
-  'Linux',
-  'Docker',
-  'Kubernetes',
-  'Jenkins',
-  'Nginx',
-  'MySQL',
-  'Redis',
-  'Spring Boot',
-].map((value) => ({ label: value, value }));
+const categoryOptions = ref(defaultCategoryOptions);
 
 const statusOptions = [
   { label: '分析中', value: 'ANALYZING' },
@@ -206,7 +233,7 @@ const columns = [
   { title: '状态', key: 'status', dataIndex: 'status', width: 150 },
   { title: '风险', key: 'riskLevel', dataIndex: 'riskLevel', width: 110 },
   { title: '更新时间', key: 'updatedAt', dataIndex: 'updatedAt', width: 190 },
-  { title: '操作', key: 'action', width: 150 },
+  { title: '操作', key: 'action', width: 230 },
 ];
 
 const pagination = computed<TablePaginationConfig>(() => ({
@@ -217,7 +244,18 @@ const pagination = computed<TablePaginationConfig>(() => ({
   showTotal: (count) => `共 ${count} 条`,
 }));
 
-onMounted(loadSessions);
+onMounted(async () => {
+  await Promise.all([loadSessions(), loadCategoryOptions()]);
+});
+
+async function loadCategoryOptions() {
+  try {
+    const options = await fetchFaultCategoryOptions();
+    categoryOptions.value = options.map((item) => ({ label: item.categoryName, value: item.categoryName }));
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '加载故障分类失败');
+  }
+}
 
 async function loadSessions() {
   loading.value = true;
@@ -294,6 +332,68 @@ async function submitFollowUp() {
     message.error(error instanceof Error ? error.message : '继续分析失败');
   } finally {
     followUpLoading.value = false;
+  }
+}
+
+async function saveAsCase() {
+  if (!detail.value?.id) {
+    message.warning('请先打开排障详情');
+    return;
+  }
+  saveCaseLoading.value = true;
+  try {
+    await createCaseFromSession(detail.value.id, {
+      status: 'DRAFT',
+      tags: [detail.value.category].filter(Boolean) as string[],
+    });
+    message.success('已保存为案例');
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '保存案例失败');
+  } finally {
+    saveCaseLoading.value = false;
+  }
+}
+
+async function generateReport() {
+  if (!detail.value?.id) {
+    message.warning('请先打开排障详情');
+    return;
+  }
+  reportLoading.value = true;
+  try {
+    report.value = await createReportFromSession(detail.value.id);
+    reportOpen.value = true;
+    message.success('复盘报告已生成');
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '生成复盘失败');
+  } finally {
+    reportLoading.value = false;
+  }
+}
+
+async function reanalyze(id: number) {
+  reanalyzeLoadingId.value = id;
+  try {
+    const response = await reanalyzeDiagnosisSession(id);
+    message.success('已重新分析');
+    await loadSessions();
+    await openDetail(response.sessionId);
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '再次分析失败');
+  } finally {
+    reanalyzeLoadingId.value = null;
+  }
+}
+
+async function copyReport() {
+  if (!report.value?.content) {
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(report.value.content);
+    message.success('Markdown 已复制');
+  } catch {
+    message.error('复制失败，请手动选择内容复制');
   }
 }
 
